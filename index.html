@@ -74,7 +74,7 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
 .readout .sub.bad{color:#ffb8ad}
 .dial{position:relative;width:120px;height:120px;border-radius:50%;cursor:grab;touch-action:none;background:radial-gradient(circle at 40% 35%,#2c3858,#141c30 70%);box-shadow:inset 0 2px 0 rgba(255,255,255,.08),0 8px 22px rgba(0,0,0,.35);pointer-events:auto}
 .dial:active{cursor:grabbing}
-.dial svg{position:absolute;inset:0;width:100%;height:100%}
+.dial svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
 .dial:focus-visible{outline:3px solid #fff;outline-offset:3px}
 #releaseBtn{all:unset;pointer-events:auto;cursor:pointer;width:96px;height:96px;border-radius:50%;display:grid;place-items:center;text-align:center;background:radial-gradient(circle at 35% 30%,#ff7a62,#e4493c 55%,#a72a20);box-shadow:inset 0 -5px 0 rgba(0,0,0,.25),inset 0 3px 0 rgba(255,255,255,.3),0 8px 20px rgba(0,0,0,.35);font-family:var(--f-display);font-size:18px;color:#fff;line-height:1.15;transition:transform .15s,opacity .15s}
 #releaseBtn small{display:block;font-family:var(--f-body);font-weight:700;font-size:10px;opacity:.85}
@@ -873,9 +873,9 @@ let phys=null, lastPos={x:0,z:0}, viewTop=false, gridOn=false, autoGrid=false;
 let predicted={x:0,z:0};
 let putterMax=10;
 const DIFF={
-  easy:  {label:'かんたん', disp:0.6,  windAim:true,  putt:1.0, note:'散らばりが小さく、着弾リングに風の影響も表示。パットは転がる道筋がすべて見えます。'},
-  normal:{label:'ふつう',   disp:1.0,  windAim:false, putt:0.4, note:'着弾リングは無風での位置。パットの道筋は途中まで見えます。'},
-  pro:   {label:'プロ',     disp:1.35, windAim:false, putt:0,   note:'散らばりが大きく、パットの道筋は表示されません。'},
+  easy:  {label:'かんたん', disp:0.6,  windAim:true,  putt:1.0, pinMark:true,  note:'散らばりが小さく、着弾リングに風の影響も表示。パットは転がる道筋がすべて見えます。'},
+  normal:{label:'ふつう',   disp:1.0,  windAim:false, putt:0.4, pinMark:false, note:'着弾リングは無風での位置。パットの道筋は途中まで見えます。'},
+  pro:   {label:'プロ',     disp:1.35, windAim:false, putt:0,   pinMark:false, note:'散らばりが大きく、パットの道筋は表示されません。'},
 };
 let diffKey='easy'; const D=()=>DIFF[diffKey];
 let pinPower=null;
@@ -1171,12 +1171,14 @@ function refreshWindUI(){
     const rl=rhythmLabel(); const sub=$('#wpSub');
     if(p>1){ sub.textContent='巻きすぎ：散らばる'; sub.className='sub bad'; }
     else if(rl){ sub.textContent='巻き具合：'+rl[0]; sub.className='sub'+(rl[1]?' '+rl[1]:''); }
-    else { sub.textContent = pinPower!=null ? '旗の印まで巻くとピン' : (c.putter?'転がり予想':'キャリー予想'); sub.className='sub'; }
+    else { sub.textContent = (pinPower!=null && D().pinMark) ? '旗の印まで巻くとピン' : (c.putter?'転がり予想':'キャリー予想'); sub.className='sub'; }
   }
   const frac=wound/(FULL*(c.putter?1:1.1));
   $('#ringFill').setAttribute('stroke-dasharray',`${(frac*C).toFixed(1)} ${C.toFixed(1)}`); $('#ringFill').setAttribute('stroke', p>1?'#e4493c':'#f5c22e');
   const ov=$('#ringOver'); if(c.putter){ ov.setAttribute('stroke-dasharray',`0 ${C}`); } else { const a=C*(1/1.1); ov.setAttribute('stroke-dasharray',`0 ${a.toFixed(1)} ${(C-a).toFixed(1)} 0`); }
-  const rp=$('#ringPin'); if(pinPower!=null && mode==='aim'){ const ang=(pinPower/(c.putter?1:1.1))*Math.PI*2; rp.hidden=false; rp.setAttribute('transform',`translate(${(60+Math.sin(ang)*54).toFixed(1)} ${(60-Math.cos(ang)*54).toFixed(1)})`); } else rp.hidden=true;
+  // 旗の印：穴までの距離を飛ばすのに必要な巻き量（かんたんモードのみ）
+  const rp=$('#ringPin'), showPin=pinPower!=null && mode==='aim' && D().pinMark; rp.toggleAttribute('hidden',!showPin);
+  if(showPin){ const ang=(pinPower/(c.putter?1:1.1))*Math.PI*2; rp.setAttribute('transform',`translate(${(60+Math.sin(ang)*54).toFixed(1)} ${(60-Math.cos(ang)*54).toFixed(1)})`); }
   $('#releaseBtn').disabled = !(mode==='aim' && p>=0.02);
   $('#keyG').setAttribute('transform',`rotate(${(wound*180/Math.PI).toFixed(1)} 60 60)`);
   $('#dial').setAttribute('aria-valuenow', Math.round(p*100));
