@@ -133,6 +133,8 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
 .scorecard th{font-size:11px;color:var(--ink-dim);font-weight:700;text-align:left;padding:4px 6px;letter-spacing:.06em}
 .scorecard td{padding:6px;border-top:1px solid var(--plate-line);text-align:left}
 .scorecard td.n{font-family:var(--f-display);text-align:right}
+.scorebtns{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.cta.ghost{background:rgba(255,255,255,.12);color:var(--ink)}
 @media (prefers-reduced-motion: reduce){ #toast{transition:none} }
 </style>
 
@@ -140,7 +142,7 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
 
 <div id="hud" hidden>
   <div class="top">
-    <div class="plate holeplate"><span class="hn">HOLE 1</span><span class="sep h">·</span><span id="holeSub">PAR 4</span><span class="sep">·</span><span><b id="strokeNo">1</b>打目</span><span class="sep l">·</span><span class="lie" id="lie">ティー</span></div>
+    <div class="plate holeplate"><span class="hn" id="holeNo">HOLE 1</span><span class="sep h">·</span><span id="holeSub">PAR 4</span><span class="sep">·</span><span><b id="strokeNo">1</b>打目</span><span class="sep l">·</span><span class="lie" id="lie">ティー</span></div>
     <div class="topright">
       <div class="plate wind" title="風向き（画面の上が打つ方向）">
         <svg viewBox="0 0 42 42" aria-hidden="true"><circle cx="21" cy="21" r="19" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/><g id="windArrow"><path d="M21 6 L28 22 L22.5 20 L22.5 34 L19.5 34 L19.5 20 L14 22 Z" fill="#7fe3ff"/></g></svg>
@@ -207,10 +209,10 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
   <div class="titlecard">
     <div class="eyebrow">TOY GOLF · PROTOTYPE</div>
     <h1>トイゴルフ</h1>
-    <p>机の上に広げたフェルトマットの1番ホール。ゴルファーはゼンマイ人形。巻いた分だけ飛び、なめらかに巻くほど狙いどおりに飛びます。弾道はスピン・風・傾斜まで計算した本物です。</p>
+    <p>机の上に広げたフェルトマットのゴルフコース。ゴルファーはゼンマイ人形。巻いた分だけ飛び、なめらかに巻くほど狙いどおりに飛びます。弾道はスピン・風・傾斜まで計算した本物です。</p>
     <div class="facts">
-      <div><label>ホール</label><b>1</b></div>
-      <div><label>パー</label><b>4</b></div>
+      <div><label>ホール</label><b id="titleHole">1</b></div>
+      <div><label>パー</label><b id="titlePar">4</b></div>
       <div><label>距離</label><b id="titleYards">363y</b></div>
     </div>
     <div class="keys">
@@ -222,6 +224,9 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
       <kbd>W A S D</kbd><span>打点（スピンと曲がり）</span>
       <kbd>M / G</kbd><span>俯瞰ビュー / グリーンの傾斜グリッド</span>
     </div>
+    <label style="margin-bottom:6px">ホール</label>
+    <div class="diff" id="holePick"></div>
+    <div class="diffnote" id="holeDesc"></div>
     <label style="margin-bottom:6px">難易度</label>
     <div class="diff" id="diffPick"><button type="button" data-d="easy" aria-pressed="true">かんたん</button><button type="button" data-d="normal" aria-pressed="false">ふつう</button><button type="button" data-d="pro" aria-pressed="false">プロ</button></div>
     <div class="diffnote" id="diffNote"></div>
@@ -231,11 +236,11 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
 
 <div class="overlay" id="score" hidden>
   <div class="plate scorecard">
-    <label>HOLE 1 · PAR 4</label>
+    <label id="scoreHole">HOLE 1 · PAR 4</label>
     <div class="res" id="scoreRes">パー</div>
     <div class="sum" id="scoreSum">4打</div>
     <table><thead><tr><th>打</th><th>クラブ</th><th>結果</th><th style="text-align:right">距離</th></tr></thead><tbody id="scoreRows"></tbody></table>
-    <button class="cta" id="againBtn" type="button">もう一度回る</button>
+    <div class="scorebtns"><button class="cta" id="nextBtn" type="button">次のホールへ</button><button class="cta ghost" id="againBtn" type="button">もう一度</button></div>
   </div>
 </div>
 
@@ -258,14 +263,44 @@ const yds = m => m/YD;
 const fmtY = m => { const y=yds(m); return y<10 ? y.toFixed(1)+'y' : Math.round(y)+'y'; };
 
 /* ---------------- course data ---------------- */
-const FW=[[18,0,205,8,19],[205,8,305,-30,15]];
-const GREEN={x:332,z:-38,rx:18,rz:13};
-const PIN={x:341,z:-40};
-const TEE={x:0,z:0,hx:6,hz:5,r:1.5};
-const BUNKERS=[[236,34,9],[250,42,6],[316,-22,6.5],[357,-46,4.5],[323,-58,4]];
-const PONDS=[[[145,-32,13],[165,-38,10]],[[298,-62,8],[312,-66,9]]];
+// ホールごとのレイアウトとテーマ。プレイ中のホールの値は下の let 変数に読み込む
+const HOLES=[
+  { name:'フェルトの森', par:4,
+    desc:'ゆるく右に曲がるパー4。フェアウェイ左のジュースの池と、グリーン手前の池に注意。',
+    FW:[[18,0,205,8,19],[205,8,305,-30,15]],
+    GREEN:{x:332,z:-38,rx:18,rz:13}, PIN:{x:341,z:-40},
+    TEE:{x:0,z:0,hx:6,hz:5,r:1.5}, teeAim:{x:215,z:6},
+    BUNKERS:[[236,34,9],[250,42,6],[316,-22,6.5],[357,-46,4.5],[323,-58,4]],
+    PONDS:[[[145,-32,13],[165,-38,10]],[[298,-62,8],[312,-66,9]]],
+    greenH:(x,z)=>0.25+0.012*(x-GREEN.x)+0.008*(z-GREEN.z)+0.2*sstep(-4,4,(x-335)-0.4*(z-GREEN.z))+0.12*Math.exp(-((x-324)*(x-324)+(z+33)*(z+33))/40),
+    trees:{kind:'toy', n:58, seed:42}, props:()=>propsFelt(),
+    th:{ rough1:'#3f7d39', rough2:'#2c6230', fw:'#6db552', stripe:'#f1e7cc', tee:'#80c25c', fringe:'#5ea547', green:'#8fcd60',
+         sand:'#e6cf9a', border:'#25324e', stitch:'#f1e7cc', stain:'#c06a1c', water:'#c95f0c', waterOp:0.86, flag:'#f5c22e', flagInk:'#1b2236', teeMark:'#e4493c' } },
+  { name:'おかしの国', par:3,
+    desc:'ピンクのフェルトにミントのフェアウェイ。グリーンの手前をチョコレートの川が横切るパー3。キャンディの木をよけてワンオンをねらおう。',
+    FW:[[95,18,163,4,11],[207,-7,214,-10,8]],
+    GREEN:{x:228,z:-12,rx:15,rz:12}, PIN:{x:233,z:-15},
+    TEE:{x:85,z:20,hx:6,hz:5,r:1.5}, teeAim:{x:233,z:-15},
+    BUNKERS:[[213,9,5.5],[247,-2,5],[236,-31,5.5],[211,-27,4]],
+    PONDS:[[[177,-76,8],[178,-64,8],[180,-52,8],[182,-41,9],[184,-29,9],[185,-17,9],[187,-5,9],[188,7,9],[188,18,9],[188,30,9],[187,42,9],[186,54,8],[184,66,8]]],
+    greenH:(x,z)=>0.3+0.011*(x-GREEN.x)-0.006*(z-GREEN.z)+0.16*Math.exp(-((x-221)*(x-221)+(z+6)*(z+6))/30)-0.1*sstep(2,9,x-GREEN.x)*sstep(-2,-8,z-GREEN.z),
+    trees:{kind:'candy', n:66, seed:7, clearLine:true}, props:()=>propsCandy(),
+    th:{ rough1:'#d9789f', rough2:'#bf5a86', fw:'#5fc49c', stripe:'#fff4f8', tee:'#7fd8b4', fringe:'#59b77f', green:'#7cc94e',
+         sand:'#fbf3f4', border:'#6e3560', stitch:'#ffe9f2', stain:'#5a2a12', water:'#4a2312', waterOp:0.97, flag:'#ff7aa8', flagInk:'#ffffff', teeMark:'#6fc7ff' } },
+  { name:'ゆきの国', par:4,
+    desc:'雪のフェルトを左に曲がるパー4。曲がり角の氷の池を越えれば近道、グリーンは奥が一段高い2段グリーン。',
+    FW:[[18,-45,190,-40,18],[190,-40,300,25,15]],
+    GREEN:{x:330,z:38,rx:16,rz:14}, PIN:{x:336,z:41},
+    TEE:{x:0,z:-45,hx:6,hz:5,r:1.5}, teeAim:{x:200,z:-40},
+    BUNKERS:[[245,-28,7],[314,20,4.5],[312,52,5.5],[350,50,5]],
+    PONDS:[[[194,4,11],[205,10,11],[216,15,10],[227,19,8]],[[338,8,6.5],[346,12,7],[354,17,6.5]]],
+    greenH:(x,z)=>0.28+0.009*(x-GREEN.x)+0.006*(z-GREEN.z)+0.18*sstep(-3,3,(z-GREEN.z)+0.3*(x-GREEN.x)),
+    trees:{kind:'snow', n:62, seed:23}, props:()=>propsSnow(),
+    th:{ rough1:'#e3e9f0', rough2:'#c3cedb', fw:'#7fb489', stripe:'#ffffff', tee:'#93c79c', fringe:'#6aa978', green:'#86c86a',
+         sand:'#d9c39b', border:'#2a3f66', stitch:'#ffffff', stain:'#8fbde0', water:'#3d8fd1', waterOp:0.82, flag:'#3d8fd1', flagInk:'#ffffff', teeMark:'#e4493c' } },
+];
+let HOLE=0, CUR=HOLES[0], FW, GREEN, PIN, TEE, BUNKERS, PONDS, PAR, TH;
 const MAT={x:175,z:-5,hx:200,hz:85,r:25};
-const PAR=4;
 const DESK_Y=-2.2;
 
 function smin(a,b,k){ const h=Math.max(k-Math.abs(a-b),0)/k; return Math.min(a,b)-h*h*k*0.25; }
@@ -281,7 +316,7 @@ function sdWater(x,z){ let d=1e9; for(let i=0;i<PONDS.length;i++) d=Math.min(d,s
 function pondAt(x,z){ let bi=0,bd=1e9; for(let i=0;i<PONDS.length;i++){ const d=sdPond(i,x,z); if(d<bd){bd=d;bi=i;} } return bi; }
 
 function ambient(x,z){ return 0.8*(0.9*Math.sin(x*0.031+0.4)*Math.cos(z*0.045)+0.6*Math.sin(x*0.07+z*0.05)+0.35*Math.sin(z*0.11-x*0.02)+0.22*Math.sin(x*0.19+z*0.13)); }
-function greenH(x,z){ return 0.25+0.012*(x-GREEN.x)+0.008*(z-GREEN.z)+0.2*sstep(-4,4,(x-335)-0.4*(z-GREEN.z))+0.12*Math.exp(-((x-324)*(x-324)+(z+33)*(z+33))/40); }
+function greenH(x,z){ return CUR.greenH(x,z); }
 function terrainH(x,z){
   const md=sdMat(x,z); if(md>0) return DESK_Y;
   let h=ambient(x,z);
@@ -293,11 +328,16 @@ function terrainH(x,z){
   h*=sstep(0,-15,md);
   return Math.max(h, DESK_Y+0.25);
 }
-const POND_LEVEL = PONDS.map((p,i)=>{
+let POND_LEVEL=[];
+// 池の水面の高さ：池のまわりの地面のいちばん低いところより少し下
+function calcPondLevel(){ return PONDS.map((p,i)=>{
   let mn=1e9;
   for(const c of p){ for(let a=0;a<64;a++){ const an=a/64*Math.PI*2; const x=c[0]+Math.cos(an)*(c[2]+3), z=c[1]+Math.sin(an)*(c[2]+3); if(sdPond(i,x,z)>2.5) mn=Math.min(mn,terrainH(x,z)); } }
   return mn-0.22;
-});
+}); }
+// ホールのデータを現在のホールとして読み込む
+function loadHoleData(i){ HOLE=i; CUR=HOLES[i]; ({FW,GREEN,PIN,TEE,BUNKERS,PONDS}=CUR); PAR=CUR.par; TH=CUR.th; POND_LEVEL=calcPondLevel(); }
+loadHoleData(0);
 function isWater(x,z){ if(sdWater(x,z)>2) return false; return terrainH(x,z) < POND_LEVEL[pondAt(x,z)]-0.01; }
 function surfAt(x,z){
   if(sdMat(x,z)>-0.8) return 'ob';
@@ -418,7 +458,8 @@ const blobTex=canvasTex(128,128,(g,w,h)=>{ const gr=g.createRadialGradient(64,64
 /* ---------------- terrain (felt mat) ---------------- */
 const f3=n=>(+n).toFixed(3);
 const vc=c=>{ const l=lin(c); return `vec3(${f3(l.r)},${f3(l.g)},${f3(l.b)})`; };
-const GLSL_SDF = `
+// 現在のホールの形をGLSLに焼き込む（ホールごとに別のシェーダーになる）
+function glslSdf(){ return `
 float smin(float a,float b,float k){ float h=max(k-abs(a-b),0.)/k; return min(a,b)-h*h*k*.25; }
 float sdCap(vec2 p,vec2 a,vec2 b,float r){ vec2 pa=p-a, ba=b-a; float h=clamp(dot(pa,ba)/dot(ba,ba),0.,1.); return length(pa-ba*h)-r; }
 float sdBox2(vec2 p,vec2 c,vec2 h,float r){ vec2 q=abs(p-c)-(h-r); return length(max(q,0.))+min(max(q.x,q.y),0.)-r; }
@@ -431,15 +472,19 @@ float sdWater(vec2 p){ float d=1e9; float dp; ${PONDS.map(pd=>`dp=1e9; ${pd.map(
 float hash12(vec2 p){ vec3 p3=fract(vec3(p.xyx)*.1031); p3+=dot(p3,p3.yzx+33.33); return fract((p3.x+p3.y)*p3.z); }
 float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); vec2 u=f*f*(3.-2.*f); return mix(mix(hash12(i),hash12(i+vec2(1.,0.)),u.x),mix(hash12(i+vec2(0.,1.)),hash12(i+vec2(1.,1.)),u.x),u.y); }
 float fbm(vec2 p){ float s=0., a=.5; for(int i=0;i<4;i++){ s+=a*vnoise(p); p*=2.03; a*=.5; } return s; }
-`;
+`; }
 
 const terrainUniforms={ uPin:{value:new T.Vector2(PIN.x,PIN.z)}, uCup:{value:CUP}, uGrid:{value:0} };
-const terrainMat=new T.MeshStandardMaterial({color:0xffffff, roughness:1, metalness:0});
-terrainMat.onBeforeCompile=sh=>{
+function makeTerrainMat(){
+  const SDF=glslSdf(), th=TH, key='terrain'+HOLE;
+  const terrainMat=new T.MeshStandardMaterial({color:0xffffff, roughness:1, metalness:0});
+  // onBeforeCompile の関数本体はどのホールでも同じなので、キャッシュキーで別プログラムに分ける
+  terrainMat.customProgramCacheKey=()=>key;
+  terrainMat.onBeforeCompile=sh=>{
   Object.assign(sh.uniforms, terrainUniforms);
   sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWPos;').replace('#include <project_vertex>','#include <project_vertex>\nvWPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
   sh.fragmentShader=sh.fragmentShader
-  .replace('#include <common>','#include <common>\nvarying vec3 vWPos;\nuniform vec2 uPin; uniform float uCup; uniform float uGrid;\n'+GLSL_SDF)
+  .replace('#include <common>','#include <common>\nvarying vec3 vWPos;\nuniform vec2 uPin; uniform float uCup; uniform float uGrid;\n'+SDF)
   .replace('#include <color_fragment>',`#include <color_fragment>
   vec2 p=vWPos.xz;
   float dMat=sdMat(p);
@@ -449,71 +494,84 @@ terrainMat.onBeforeCompile=sh=>{
   float aa=clamp(0.0022*vd,0.03,2.0);
   float dF=sdFairway(p), dG=sdGreen(p), dB=sdBunker(p), dW=sdWater(p), dT=sdTee(p);
   float nL=fbm(p*0.35), nM=vnoise(p*3.1), nF=vnoise(p*23.0), nX=hash12(floor(p*90.0));
-  vec3 col=mix(${vc('#3f7d39')},${vc('#2c6230')},nL)*(0.82+0.28*nM)*(0.9+0.18*nF);
+  vec3 col=mix(${vc(th.rough1)},${vc(th.rough2)},nL)*(0.82+0.28*nM)*(0.9+0.18*nF);
   float rgh=1.0; float sheenAmt=0.6;
   float mF=smoothstep(aa,-aa,dF);
-  vec3 cF=${vc('#6db552')}*(0.93+0.1*nL)*(0.95+0.08*nF)*(0.965+0.05*step(0.5,fract(p.x/10.0)));
+  vec3 cF=${vc(th.fw)}*(0.93+0.1*nL)*(0.95+0.08*nF)*(0.965+0.05*step(0.5,fract(p.x/10.0)));
   col=mix(col,cF,mF);
   float near=smoothstep(90.0,25.0,vd);
   float st=smoothstep(0.10,0.035,abs(dF+0.75))*step(0.45,fract((p.x+p.y)*0.9));
-  col=mix(col,${vc('#f1e7cc')},st*0.85*near);
-  float mT=smoothstep(aa,-aa,dT); col=mix(col,${vc('#80c25c')}*(0.95+0.08*nF),mT);
-  float mFr=smoothstep(aa,-aa,dG-1.6); col=mix(col,${vc('#5ea547')}*(0.94+0.08*nF),mFr);
+  col=mix(col,${vc(th.stripe)},st*0.85*near);
+  float mT=smoothstep(aa,-aa,dT); col=mix(col,${vc(th.tee)}*(0.95+0.08*nF),mT);
+  float mFr=smoothstep(aa,-aa,dG-1.6); col=mix(col,${vc(th.fringe)}*(0.94+0.08*nF),mFr);
   float mG=smoothstep(aa,-aa,dG);
   float chk=mod(floor(p.x/3.0)+floor(p.y/3.0),2.0);
-  vec3 cG=${vc('#8fcd60')}*(0.965+0.06*chk)*(0.97+0.05*nF);
+  vec3 cG=${vc(th.green)}*(0.965+0.06*chk)*(0.97+0.05*nF);
   col=mix(col,cG,mG); rgh=mix(rgh,0.86,mG);
   float sg=smoothstep(0.035,-0.035,abs(dG+0.05)-0.04)*step(0.45,fract((p.x+p.y)*1.4));
-  col=mix(col,${vc('#f1e7cc')},sg*0.7*near);
+  col=mix(col,${vc(th.stripe)},sg*0.7*near);
   float gl=max(smoothstep(0.478,0.494,abs(fract(p.x)-0.5)),smoothstep(0.478,0.494,abs(fract(p.y)-0.5)));
   col=mix(col,vec3(0.85,0.88,0.95),gl*uGrid*smoothstep(1.0,-1.0,dG-6.0)*0.4);
   float mB=smoothstep(aa,-aa,dB);
-  vec3 cS=${vc('#e6cf9a')}*(0.86+0.2*nM)*(0.88+0.24*nX);
+  vec3 cS=${vc(th.sand)}*(0.86+0.2*nM)*(0.88+0.24*nX);
   float lip=smoothstep(0.7,0.0,abs(dB))*0.28; col*=1.0-lip*(1.0-mB);
   col=mix(col,cS,mB); rgh=mix(rgh,1.0,mB); sheenAmt=mix(sheenAmt,0.0,mB);
   float stain=smoothstep(3.2,0.0,dW);
-  col=mix(col,col*${vc('#c06a1c')}*2.2,stain*0.55);
+  col=mix(col,col*${vc(th.stain)}*2.2,stain*0.55);
   col*=mix(1.0,0.5,smoothstep(0.0,-2.5,dW));
   float mBd=smoothstep(-1.9-aa,-1.9+aa,dMat);
-  col=mix(col,${vc('#25324e')}*(0.9+0.16*nF),mBd);
+  col=mix(col,${vc(th.border)}*(0.9+0.16*nF),mBd);
   float zig=abs(fract((p.x+p.y)*0.6)-0.5)*2.0;
   float stitch2=smoothstep(0.12,0.04,abs(dMat+1.0+(zig-0.5)*0.6));
-  col=mix(col,${vc('#f1e7cc')},stitch2*mBd*0.9*near);
+  col=mix(col,${vc(th.stitch)},stitch2*mBd*0.9*near);
   rgh=mix(rgh,0.75,mBd);
   diffuseColor.rgb=col;
   float sRough=rgh; vec3 sSheen=col*sheenAmt;`)
   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=sRough;')
   .replace('#include <lights_fragment_end>','#include <lights_fragment_end>\ntotalEmissiveRadiance+=sSheen*pow(1.0-saturate(dot(normal,normalize(vViewPosition))),3.0)*0.55;');
-};
+  };
+  return terrainMat;
+}
 const TB={x0:-30,x1:380,z0:-95,z1:85};
-const terrainGeo=new T.PlaneGeometry(TB.x1-TB.x0, TB.z1-TB.z0, 410, 180);
-terrainGeo.rotateX(-Math.PI/2);
-terrainGeo.translate((TB.x0+TB.x1)/2,0,(TB.z0+TB.z1)/2);
-{ const pos=terrainGeo.attributes.position; for(let i=0;i<pos.count;i++){ pos.setY(i, terrainH(pos.getX(i),pos.getZ(i))); } terrainGeo.computeVertexNormals(); }
-const terrain=new T.Mesh(terrainGeo, terrainMat); terrain.receiveShadow=true; scene.add(terrain);
+function makeTerrain(){
+  const terrainGeo=new T.PlaneGeometry(TB.x1-TB.x0, TB.z1-TB.z0, 410, 180);
+  terrainGeo.rotateX(-Math.PI/2);
+  terrainGeo.translate((TB.x0+TB.x1)/2,0,(TB.z0+TB.z1)/2);
+  { const pos=terrainGeo.attributes.position; for(let i=0;i<pos.count;i++){ pos.setY(i, terrainH(pos.getX(i),pos.getZ(i))); } terrainGeo.computeVertexNormals(); }
+  const m=new T.Mesh(terrainGeo, makeTerrainMat()); m.receiveShadow=true; return m;
+}
+let terrain=null;
 
 // desk
 const desk=new T.Mesh(new T.PlaneGeometry(1800,1300), new T.MeshStandardMaterial({map:woodTex, roughness:0.5, metalness:0, envMapIntensity:0.8}));
 desk.rotation.x=-Math.PI/2; desk.position.set(175,DESK_Y,-5); desk.receiveShadow=true; scene.add(desk);
 
-// water: spilled juice
+// コース1面ぶんの物体をまとめるグループ（ホール切り替えで表示を入れ替える）
+let courseG=null;
+const addC=o=>{ courseG.add(o); return o; };
+
+// water: spilled juice / melted chocolate
 const waterUniforms={uTime:{value:0}};
-PONDS.forEach((p,i)=>{
+function makePonds(){
+  const SDF=glslSdf(), key='water'+HOLE;
+  PONDS.forEach((p,i)=>{
   let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9; for(const c of p){ x0=Math.min(x0,c[0]-c[2]-4); x1=Math.max(x1,c[0]+c[2]+4); z0=Math.min(z0,c[1]-c[2]-4); z1=Math.max(z1,c[1]+c[2]+4); }
-  const m=new T.MeshPhysicalMaterial({color:lin('#c95f0c'), roughness:0.08, metalness:0, clearcoat:1, clearcoatRoughness:0.05, transparent:true, opacity:0.86, envMapIntensity:0.6});
+  const m=new T.MeshPhysicalMaterial({color:lin(TH.water), roughness:0.08, metalness:0, clearcoat:1, clearcoatRoughness:0.05, transparent:true, opacity:TH.waterOp, envMapIntensity:0.6});
+  m.customProgramCacheKey=()=>key;
   m.onBeforeCompile=sh=>{
     sh.uniforms.uTime=waterUniforms.uTime;
     sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vWPos;').replace('#include <project_vertex>','#include <project_vertex>\nvWPos=(modelMatrix*vec4(transformed,1.0)).xyz;');
-    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWPos; uniform float uTime;\n'+GLSL_SDF)
+    sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vWPos; uniform float uTime;\n'+SDF)
       .replace('#include <color_fragment>','#include <color_fragment>\nif(sdWater(vWPos.xz)>1.5) discard;\ndiffuseColor.rgb*=0.85+0.25*vnoise(vWPos.xz*0.3+uTime*0.05);')
       .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{ vec2 q=vWPos.xz; float t=uTime; vec3 pn=vec3(sin(q.x*1.7+t*1.3)+sin(q.y*2.3-t*1.1+q.x*.6), 0.0, cos(q.y*1.9+t*1.5)+sin(q.x*2.9+q.y*1.1+t)); normal=normalize(normal+(viewMatrix*vec4(pn*0.035,0.0)).xyz); }');
   };
   const mesh=new T.Mesh(new T.PlaneGeometry(x1-x0,z1-z0,1,1), m);
-  mesh.rotation.x=-Math.PI/2; mesh.position.set((x0+x1)/2, POND_LEVEL[i], (z0+z1)/2); mesh.renderOrder=2; scene.add(mesh);
-});
+  mesh.rotation.x=-Math.PI/2; mesh.position.set((x0+x1)/2, POND_LEVEL[i], (z0+z1)/2); mesh.renderOrder=2; addC(mesh);
+  });
+}
 
 /* ---------------- toy props: trees, blocks, flag, desk items ---------------- */
-const OBS=[];
+let OBS=[];
 const toyPaint=(hex,r=0.42)=>new T.MeshPhysicalMaterial({color:lin(hex), roughness:r, metalness:0, clearcoat:0.6, clearcoatRoughness:0.3});
 const trunkMat=new T.MeshPhysicalMaterial({color:lin('#c39363'), roughness:0.55, clearcoat:0.3, clearcoatRoughness:0.5});
 const canopyMats=['#4e9a48','#3c8a58','#67a94c','#2f7a4a','#e2a62c','#d75a3a'].map(c=>toyPaint(c,0.38));
@@ -535,17 +593,87 @@ function addTree(x,z,rnd){
   }
   OBS.push({t:'c',x,z,r:0.5*s+0.05,y0:y,y1:y+trunkH+0.5,e:0.5,br:3});
   g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
-  scene.add(g);
+  addC(g);
 }
-{ const rnd=rng(42); let n=0, tries=0;
-  while(n<58 && tries<6000){ tries++;
+// おかしの国の木：ペロペロキャンディとグミ
+const CANDY_COLS=['#ff6f91','#ffc23c','#5ec8ff','#b07cff','#6fdc9c','#ff8a5c'];
+const stickMat=toyPaint('#fbf6ee',0.35);
+let candyMats=null;
+function getCandyMats(){
+  if(candyMats) return candyMats;
+  candyMats=CANDY_COLS.map(c=>{
+    // 円盤の面はうずまき模様、側面は無地
+    const sw=canvasTex(256,256,(g,w,h)=>{ g.fillStyle='#fffaf4'; g.fillRect(0,0,w,h); g.strokeStyle=c; g.lineWidth=17; g.lineCap='round';
+      for(const ph of [0,Math.PI]){ g.beginPath(); for(let t=0;t<=Math.PI*7;t+=0.08){ const r=4+t*5.6; const x=w/2+Math.cos(t+ph)*r, y=h/2+Math.sin(t+ph)*r; if(t) g.lineTo(x,y); else g.moveTo(x,y); } g.stroke(); } });
+    const cap=new T.MeshPhysicalMaterial({map:sw, roughness:0.25, clearcoat:1, clearcoatRoughness:0.1});
+    return {side:toyPaint(c,0.25), cap, gum:new T.MeshPhysicalMaterial({color:lin(c), roughness:0.7, clearcoat:0.25, clearcoatRoughness:0.6})};
+  });
+  return candyMats;
+}
+const geoDisc=new T.CylinderGeometry(1,1,1,40); geoDisc.rotateX(Math.PI/2);
+const geoStick=new T.CylinderGeometry(1,1,1,12); geoStick.translate(0,0.5,0);
+function addCandyTree(x,z,rnd){
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z);
+  const s=0.8+rnd()*0.55; const M=getCandyMats()[rnd()*CANDY_COLS.length|0];
+  if(rnd()<0.62){
+    // ペロペロキャンディ：白い棒の先にうずまきの円盤
+    const rot=rnd()*Math.PI, stickH=5*s, cr=(2.6+rnd()*1.2)*s, th=0.75*s;
+    const st=new T.Mesh(geoStick, stickMat); st.scale.set(0.28*s,stickH,0.28*s); g.add(st);
+    const disc=new T.Mesh(geoDisc, [M.side,M.cap,M.cap]); disc.scale.set(cr,cr,th); disc.position.y=stickH+cr*0.85; disc.rotation.y=rot; g.add(disc);
+    OBS.push({t:'b',x,y:y+stickH+cr*0.85,z,hx:cr*0.85,hy:cr*0.85,hz:th/2,rot,e:0.5,br:cr+2});
+    OBS.push({t:'c',x,z,r:0.28*s+0.05,y0:y,y1:y+stickH+0.2,e:0.5,br:3});
+  } else {
+    // グミ：ころんとした半球
+    const r=(2.4+rnd()*1.1)*s;
+    const gm=new T.Mesh(geoBall, M.gum); gm.scale.set(r,r*0.95,r); gm.position.y=r*0.35; g.add(gm);
+    OBS.push({t:'s',x,y:y+r*0.35,z,r:r*0.97,e:0.62,br:r+2});
+  }
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } });
+  addC(g);
+}
+// ゆきの国の木：雪をかぶったモミの木と雪だるま
+const snowMat=new T.MeshPhysicalMaterial({color:lin('#fbfdff'), roughness:0.85, clearcoat:0.15, clearcoatRoughness:0.7});
+const firMats=['#2f6b4f','#3c7a55','#285d48'].map(c=>toyPaint(c,0.45));
+const carrotMat=toyPaint('#f08a2c',0.4), coalMat=toyPaint('#1d1d22',0.5);
+const scarfMats=['#e4493c','#2f6fc0','#f0b92f'].map(c=>toyPaint(c,0.6));
+function addSnowman(x,z,s,rnd,g0){
+  const y=terrainH(x,z); const g=g0||new T.Group(); g.position.set(x,y,z); g.rotation.y=rnd()*Math.PI*2;
+  const r1=1.9*s, r2=1.35*s, r3=0.95*s; const y1=r1*0.85, y2=y1+r1*0.75+r2*0.7, y3=y2+r2*0.7+r3*0.8;
+  [[r1,y1],[r2,y2],[r3,y3]].forEach(([r,yy])=>{ const b=new T.Mesh(geoBall,snowMat); b.scale.setScalar(r); b.position.y=yy; g.add(b); });
+  const nose=new T.Mesh(geoCone,carrotMat); nose.scale.set(0.16*s,0.9*s,0.16*s); nose.rotation.x=Math.PI/2; nose.position.set(0,y3,r3*0.9); g.add(nose);
+  [-1,1].forEach(sd=>{ const e=new T.Mesh(geoBall,coalMat); e.scale.setScalar(0.12*s); e.position.set(sd*0.32*s,y3+0.28*s,r3*0.86); g.add(e); });
+  const scarf=new T.Mesh(new T.TorusGeometry(r2*0.72,0.22*s,10,28), scarfMats[rnd()*scarfMats.length|0]); scarf.rotation.x=Math.PI/2; scarf.position.y=y2+r2*0.62; g.add(scarf);
+  const hat=new T.Mesh(geoBase,coalMat); hat.scale.set(0.62*s,0.95*s,0.62*s); hat.position.y=y3+r3*0.72; g.add(hat);
+  const brim=new T.Mesh(geoBase,coalMat); brim.scale.set(0.95*s,0.1*s,0.95*s); brim.position.y=y3+r3*0.72; g.add(brim);
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  [[r1,y1],[r2,y2],[r3,y3]].forEach(([r,yy])=>OBS.push({t:'s',x,y:y+yy,z,r,e:0.25,br:r+2}));
+}
+function addSnowTree(x,z,rnd){
+  if(rnd()<0.2){ addSnowman(x,z,0.8+rnd()*0.4,rnd); return; }
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z);
+  const s=0.85+rnd()*0.55; const fm=firMats[rnd()*firMats.length|0];
+  const tr=new T.Mesh(geoTrunk, trunkMat); tr.scale.set(0.8*s,1.6*s,0.8*s); g.add(tr);
+  // 3段の円すいを重ね、それぞれの上に雪をのせる
+  const tiers=[[3.6,4.2,1.2],[2.8,3.6,3.4],[1.9,3.0,5.4]];
+  tiers.forEach(([r,h,yy])=>{ const c=new T.Mesh(geoCone,fm); c.scale.set(r*s,h*s,r*s); c.position.y=yy*s; g.add(c);
+    const cap=new T.Mesh(geoCone,snowMat); cap.scale.set(r*s*0.62,h*s*0.42,r*s*0.62); cap.position.y=(yy+h*0.6)*s; g.add(cap); });
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  OBS.push({t:'s',x,y:y+3.3*s,z,r:2.6*s,e:0.3,br:3.6*s+2});
+  OBS.push({t:'c',x,z,r:0.45*s,y0:y,y1:y+1.6*s,e:0.5,br:3});
+}
+function plantTrees(){
+  const cfg=CUR.trees; const rnd=rng(cfg.seed); let n=0, tries=0;
+  while(n<cfg.n && tries<6000){ tries++;
     const x=TB.x0+10+rnd()*(TB.x1-TB.x0-20), z=TB.z0+10+rnd()*(TB.z1-TB.z0-20);
     const dF=sdFairway(x,z);
     if(sdMat(x,z)>-9 || dF<5 || sdGreen(x,z)<8 || sdBunker(x,z)<3 || sdWater(x,z)<4 || sdTee(x,z)<7) continue;
-    if(x<25 && Math.abs(z)<14) continue;
+    if(x-TEE.x<25 && Math.abs(z-TEE.z)<14) continue;
+    // ティーからピンへの直線上には置かない（パー3でワンオンをねらえるように）
+    if(cfg.clearLine && sdCap(x,z,TEE.x,TEE.z,PIN.x,PIN.z,13)<0) continue;
     if(dF>26 && rnd()<0.75) continue;
-    let ok=true; for(const o of OBS){ if(o.t==='c' && Math.hypot(o.x-x,o.z-z)<7){ ok=false; break; } } if(!ok) continue;
-    addTree(x,z,rnd); n++;
+    let ok=true; for(const o of OBS){ const d=Math.hypot(o.x-x,o.z-z); if(o.t==='c' ? d<7 : (cfg.kind!=='toy' && d<6.5)){ ok=false; break; } } if(!ok) continue;
+    if(cfg.kind==='candy') addCandyTree(x,z,rnd); else if(cfg.kind==='snow') addSnowTree(x,z,rnd); else addTree(x,z,rnd);
+    n++;
   }
 }
 // alphabet blocks
@@ -554,42 +682,94 @@ const blockGeo=new T.BoxGeometry(1,1,1);
 function addBlock(x,z,yOff,size,rot,letter,color){
   const tex=letterTex(letter,color);
   const m=new T.MeshPhysicalMaterial({map:tex, roughness:0.45, clearcoat:0.5, clearcoatRoughness:0.35});
-  const mesh=new T.Mesh(blockGeo,m); const y=yOff+size/2; mesh.scale.setScalar(size); mesh.position.set(x,y,z); mesh.rotation.y=rot; mesh.castShadow=true; mesh.receiveShadow=true; scene.add(mesh);
+  const mesh=new T.Mesh(blockGeo,m); const y=yOff+size/2; mesh.scale.setScalar(size); mesh.position.set(x,y,z); mesh.rotation.y=rot; mesh.castShadow=true; mesh.receiveShadow=true; addC(mesh);
   OBS.push({t:'b',x,y,z,hx:size/2,hy:size/2,hz:size/2,rot,e:0.45,br:size+2});
 }
-{ const bx=198, bz=-27, gy=terrainH(bx,bz)-0.2, s=4.4;
+// 1番ホールの小物：積み木の家
+function propsFelt(){ const bx=198, bz=-27, gy=terrainH(bx,bz)-0.2, s=4.4;
   addBlock(bx,bz,gy,s,0.12,'T','#d8463b');
   addBlock(bx+0.4,bz+0.3,gy+s,s,0.42,'O','#2f6fc0');
   addBlock(bx-0.2,bz-0.2,gy+2*s,s,-0.15,'Y','#f0b92f');
   addBlock(bx+5.2,bz-1.5,terrainH(bx+5.2,bz-1.5)-0.2,s,0.6,'G','#3d9a5b');
   addBlock(bx-4.8,bz+2.6,terrainH(bx-4.8,bz+2.6)-0.2,s,-0.4,'F','#d8463b');
-  const roof=new T.Mesh(new T.CylinderGeometry(s*0.62,s*0.62,s,3), toyPaint('#2f6fc0')); roof.rotation.z=Math.PI/2; roof.rotation.y=-0.15; roof.position.set(bx-0.2,gy+3*s+s*0.31,bz-0.2); roof.castShadow=true; scene.add(roof);
+  const roof=new T.Mesh(new T.CylinderGeometry(s*0.62,s*0.62,s,3), toyPaint('#2f6fc0')); roof.rotation.z=Math.PI/2; roof.rotation.y=-0.15; roof.position.set(bx-0.2,gy+3*s+s*0.31,bz-0.2); roof.castShadow=true; addC(roof);
   OBS.push({t:'b',x:bx-0.2,y:gy+3*s+s*0.25,z:bz-0.2,hx:s/2,hy:s*0.28,hz:s*0.5,rot:-0.15,e:0.45,br:s+2});
   addBlock(372,-12,terrainH(372,-12)-0.2,3.6,0.3,'L','#f0b92f');
   addBlock(46,29,terrainH(46,29)-0.2,3.6,-0.5,'A','#2f6fc0');
 }
-// tee markers
-const teeMarkMat=toyPaint('#e4493c',0.3);
-[-4.2,4.2].forEach(dz=>{ const m=new T.Mesh(geoBall,teeMarkMat); m.scale.setScalar(0.32); m.position.set(1.5,terrainH(1.5,dz)+0.3,dz); m.castShadow=true; scene.add(m); });
-// cup + flag
-const pinY=terrainH(PIN.x,PIN.z);
-{ const cupM=new T.MeshStandardMaterial({color:lin('#f2f2ee'), roughness:0.6, side:T.BackSide});
-  const cup=new T.Mesh(new T.CylinderGeometry(CUP,CUP,0.24,32,1,true), cupM); cup.position.set(PIN.x,pinY-0.12,PIN.z); scene.add(cup);
-  const inner=new T.Mesh(new T.CylinderGeometry(CUP*0.998,CUP*0.998,0.2,32,1,true), new T.MeshStandardMaterial({color:lin('#1d1d1d'),roughness:1,side:T.BackSide})); inner.position.set(PIN.x,pinY-0.16,PIN.z); scene.add(inner);
-  const bot=new T.Mesh(new T.CircleGeometry(CUP,32), new T.MeshStandardMaterial({color:lin('#151515'),roughness:1})); bot.rotation.x=-Math.PI/2; bot.position.set(PIN.x,pinY-0.235,PIN.z); scene.add(bot);
+// ドーナツ：寝かせたトーラス。当たり判定は輪にそって並べた球
+function addDonut(x,z,R,r,icing,rnd){
+  const y=terrainH(x,z)-0.1; const g=new T.Group(); g.position.set(x,y+r*0.9,z);
+  const dough=new T.Mesh(new T.TorusGeometry(R,r,20,48), new T.MeshPhysicalMaterial({color:lin('#d99a55'),roughness:0.75,clearcoat:0.1})); dough.rotation.x=Math.PI/2; g.add(dough);
+  const ice=new T.Mesh(new T.TorusGeometry(R,r*1.04,20,48), new T.MeshPhysicalMaterial({color:lin(icing),roughness:0.3,clearcoat:0.8,clearcoatRoughness:0.2})); ice.rotation.x=Math.PI/2; ice.scale.z=0.55; ice.position.y=r*0.42; g.add(ice);
+  // トッピングのカラースプレー
+  const sprGeo=new T.BoxGeometry(0.22,0.22,0.9), sprMats=CANDY_COLS.map(c=>toyPaint(c,0.3));
+  for(let i=0;i<70;i++){ const a=rnd()*Math.PI*2, rr=R+(rnd()*2-1)*r*0.8, k=(rr-R)/(r*1.04); const sp=new T.Mesh(sprGeo, sprMats[i%sprMats.length]); sp.position.set(Math.cos(a)*rr, r*0.42+r*0.57*Math.sqrt(Math.max(0,1-k*k)), Math.sin(a)*rr); sp.rotation.y=rnd()*Math.PI; g.add(sp); }
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  for(let i=0;i<16;i++){ const a=i/16*Math.PI*2; OBS.push({t:'s',x:x+Math.cos(a)*R,y:y+r*0.9,z:z+Math.sin(a)*R,r:r,e:0.3,br:r+2}); }
 }
-const flagGroup=new T.Group(); flagGroup.position.set(PIN.x,pinY,PIN.z); scene.add(flagGroup);
+// 2番ホールの小物：グリーン奥の SWEET の積み木、ティー脇の YUM、ドーナツ
+function propsCandy(){ const rnd=rng(11);
+  'SWEET'.split('').forEach((ch,i)=>{ const x=268+Math.sin(i*1.7)*1.2, z=-26+i*5.2; addBlock(x,z,terrainH(x,z)-0.2,4.2,(rnd()-0.5)*0.5,ch,['#ff6f91','#5ec8ff','#ffc23c','#b07cff','#6fdc9c'][i]); });
+  addBlock(70,-6,terrainH(70,-6)-0.2,3.8,0.35,'Y','#ff8a5c');
+  addBlock(70.4,-5.7,terrainH(70,-6)-0.2+3.8,3.8,0.1,'U','#5ec8ff');
+  addBlock(74.5,-10,terrainH(74.5,-10)-0.2,3.8,-0.25,'M','#6fdc9c');
+  addDonut(132,-40,6,2.4,'#ff8fb6',rnd);
+  addDonut(300,40,5,2.1,'#7a4a2a',rnd);
+}
+// 3番ホールの小物：曲がり角の外の SNOW の積み木、グリーン奥の大きな雪だるま
+function propsSnow(){ const rnd=rng(5);
+  'SNOW'.split('').forEach((ch,i)=>{ const x=262+i*4.6, z=-58+Math.sin(i*1.3)*1.4; addBlock(x,z,terrainH(x,z)-0.2,4.2,(rnd()-0.5)*0.5,ch,['#2f6fc0','#e4493c','#3d9a5b','#f0b92f'][i]); });
+  addBlock(46,-28,terrainH(46,-28)-0.2,3.6,0.4,'B','#e4493c');
+  addBlock(50,-25.5,terrainH(50,-25.5)-0.2,3.6,-0.2,'R','#2f6fc0');
+  addSnowman(362,58,2.2,rnd);
+}
+function addTeeMarkers(){
+  const teeMarkMat=toyPaint(TH.teeMark,0.3);
+  [-4.2,4.2].forEach(dz=>{ const x=TEE.x+1.5, z=TEE.z+dz; const m=new T.Mesh(geoBall,teeMarkMat); m.scale.setScalar(0.32); m.position.set(x,terrainH(x,z)+0.3,z); m.castShadow=true; addC(m); });
+}
+// cup + flag
+let pinY=0;
+function addCup(){ const py=terrainH(PIN.x,PIN.z);
+  const cupM=new T.MeshStandardMaterial({color:lin('#f2f2ee'), roughness:0.6, side:T.BackSide});
+  const cup=new T.Mesh(new T.CylinderGeometry(CUP,CUP,0.24,32,1,true), cupM); cup.position.set(PIN.x,py-0.12,PIN.z); addC(cup);
+  const inner=new T.Mesh(new T.CylinderGeometry(CUP*0.998,CUP*0.998,0.2,32,1,true), new T.MeshStandardMaterial({color:lin('#1d1d1d'),roughness:1,side:T.BackSide})); inner.position.set(PIN.x,py-0.16,PIN.z); addC(inner);
+  const bot=new T.Mesh(new T.CircleGeometry(CUP,32), new T.MeshStandardMaterial({color:lin('#151515'),roughness:1})); bot.rotation.x=-Math.PI/2; bot.position.set(PIN.x,py-0.235,PIN.z); addC(bot);
+}
+const flagGroup=new T.Group(); scene.add(flagGroup);
 const flagUniforms={uTime:{value:0}, uWind:{value:0.5}};
+let flagTex;
 { const stripe=canvasTex(32,256,(g,w,h)=>{ for(let i=0;i<8;i++){ g.fillStyle=i%2?'#f6f1e4':'#e4493c'; g.fillRect(0,i*h/8,w,h/8); } });
   const pole=new T.Mesh(new T.CylinderGeometry(0.032,0.032,2.5,16), new T.MeshPhysicalMaterial({map:stripe, roughness:0.35, clearcoat:0.8}));
   pole.position.y=1.25-0.15; pole.castShadow=true; flagGroup.add(pole);
   const knob=new T.Mesh(geoBall, toyPaint('#f5c22e',0.3)); knob.scale.setScalar(0.07); knob.position.y=2.42; flagGroup.add(knob);
-  const ftex=canvasTex(256,160,(g,w,h)=>{ g.fillStyle='#f5c22e'; g.fillRect(0,0,w,h); g.fillStyle='#1b2236'; g.font='bold 110px "Dela Gothic One", Georgia, serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('1',w/2,h/2+6); });
+  flagTex=canvasTex(256,160,()=>{});
   const fgeo=new T.PlaneGeometry(0.9,0.56,16,6); fgeo.translate(0.45,0,0);
-  const fm=new T.MeshStandardMaterial({map:ftex, roughness:0.85, side:T.DoubleSide});
+  const fm=new T.MeshStandardMaterial({map:flagTex, roughness:0.85, side:T.DoubleSide});
   fm.onBeforeCompile=sh=>{ sh.uniforms.uTime=flagUniforms.uTime; sh.uniforms.uWind=flagUniforms.uWind; sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nuniform float uTime; uniform float uWind;').replace('#include <begin_vertex>','#include <begin_vertex>\nfloat k=position.x/0.9; transformed.z+=sin(position.x*7.0-uTime*(4.0+uWind*1.5))*0.07*k*(0.4+uWind*0.4); transformed.y-=k*k*0.12*(1.0-min(uWind/5.0,1.0));'); };
   const flag=new T.Mesh(fgeo,fm); flag.position.y=2.08; flag.castShadow=true; flagGroup.add(flag);
 }
+// 旗の布にホールの色と番号を描き直す
+function drawFlag(){ const cv=flagTex.image, g=cv.getContext('2d'), w=cv.width, h=cv.height;
+  g.fillStyle=TH.flag; g.fillRect(0,0,w,h); g.fillStyle=TH.flagInk; g.font='bold 110px "Dela Gothic One", Georgia, serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(HOLE+1),w/2,h/2+6); flagTex.needsUpdate=true; }
+// ホールのコースを組み立てる（初回だけ。2回目以降は作ったものを表示し直す）
+const builtHoles=[];
+function buildCourse(){
+  courseG=new T.Group(); OBS=[];
+  terrain=makeTerrain(); addC(terrain);
+  makePonds(); CUR.props(); plantTrees(); addTeeMarkers(); addCup();
+  scene.add(courseG);
+  return {g:courseG, terrain, obs:OBS};
+}
+function useHole(i){
+  loadHoleData(i);
+  builtHoles.forEach(b=>{ if(b) b.g.visible=false; });
+  if(!builtHoles[i]) builtHoles[i]=buildCourse();
+  const b=builtHoles[i]; b.g.visible=true; terrain=b.terrain; OBS=b.obs;
+  pinY=terrainH(PIN.x,PIN.z); terrainUniforms.uPin.value.set(PIN.x,PIN.z);
+  flagGroup.position.set(PIN.x,pinY,PIN.z); drawFlag();
+}
+useHole(0);
 // desk items: mug, pencils, eraser, books (scale: the mat is a 1.2 m rug, so a mug is ~35 m tall)
 { const DY=DESK_Y;
   const glaze=new T.MeshPhysicalMaterial({color:lin('#e8edf1'), roughness:0.25, clearcoat:1, clearcoatRoughness:0.08});
@@ -907,7 +1087,7 @@ const dirX=()=>Math.cos(aimYaw), dirZ=()=>Math.sin(aimYaw);
 function newWind(){ const r=Math.random; windSpd=0.4+r()*5.2; const a=r()*Math.PI*2; windX=Math.cos(a)*windSpd; windZ=Math.sin(a)*windSpd; flagGroup.rotation.y=Math.atan2(-windZ,windX); flagUniforms.uWind.value=windSpd; }
 
 function resetHole(){
-  strokes=0; shots=[]; placeBall(-1.5,0.0); lastPos={x:ball.x,z:ball.z}; trailClear(); newWind(); impactX=impactY=0; updImpact();
+  strokes=0; shots=[]; placeBall(TEE.x-1.5,TEE.z); lastPos={x:ball.x,z:ball.z}; trailClear(); newWind(); impactX=impactY=0; updImpact();
   $('#score').hidden=true; toAim(true);
 }
 
@@ -923,7 +1103,7 @@ function toAim(snap){
   trailClear();
   mode='aim'; phys=null; GF.top=null; GF.follow=-1; wound=0; lastNotch=0; rhythmSamples=[]; usedKeys=false;
   lieKey=surfAt(ball.x,ball.z); if(lieKey==='ob'||lieKey==='water') lieKey='rough';
-  if(lieKey==='tee' && strokes===0) aimYaw=Math.atan2(6-ball.z, 215-ball.x);
+  if(lieKey==='tee' && strokes===0) aimYaw=Math.atan2(CUR.teeAim.z-ball.z, CUR.teeAim.x-ball.x);
   else aimYaw=Math.atan2(PIN.z-ball.z, PIN.x-ball.x);
   clubIdx=autoClub();
   autoGrid = (lieKey==='green'||lieKey==='fringe') && pinDist()<30;
@@ -1124,10 +1304,17 @@ function holed(){
   toast(res, `${strokes}打でカップイン`, d<=0?'gold':'', 2200);
   later(()=>showScore(res), 2600);
 }
-let dropT=0;
+let dropT=0; const roundCard=[];
 function showScore(res){
   $('#scoreRes').textContent=res;
-  const d=strokes-PAR; $('#scoreSum').textContent=`${strokes}打（${d===0?'イーブン':(d>0?'+'+d:d)}）`;
+  const d=strokes-PAR; const fmtD=d=>d===0?'イーブン':(d>0?'+'+d:d);
+  // 通算スコア（2ホール以上回ったとき）
+  roundCard[HOLE]={strokes, par:PAR}; const played=roundCard.filter(Boolean);
+  let sum=`${strokes}打（${fmtD(d)}）`;
+  if(played.length>1){ const ts=played.reduce((a,c)=>a+c.strokes,0), tp=played.reduce((a,c)=>a+c.par,0); sum+=` ・ 通算 ${ts}打（${fmtD(ts-tp)}）`; }
+  $('#scoreSum').textContent=sum;
+  $('#scoreHole').textContent=`HOLE ${HOLE+1} · ${CUR.name} · PAR ${PAR}`;
+  const nx=(HOLE+1)%HOLES.length; $('#nextBtn').textContent= nx===0 ? '1番ホールから回る' : `${nx+1}番ホールへ`;
   const tb=$('#scoreRows'); tb.innerHTML='';
   shots.forEach((s,i)=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${i+1}</td><td>${s.club}</td><td>${s.res}</td><td class="n">${s.total>0?fmtY(s.total):'—'}</td>`; tb.appendChild(tr); });
   $('#score').hidden=false;
@@ -1303,7 +1490,7 @@ function updateVisuals(dt){
 let keys={};
 addEventListener('keydown',e=>{
   if(mode==='title'){ if(e.code==='Enter'||e.code==='Space'){ e.preventDefault(); start(); } return; }
-  if(!$('#score').hidden){ if(e.code==='Enter'){ resetHole(); } return; }
+  if(!$('#score').hidden){ if(e.code==='Enter'){ nextHole(); } return; }
   keys[e.code]=true;
   if(e.code==='Space') e.preventDefault();
   if((e.code==='Enter'||e.code==='KeyF') && !e.repeat){ e.preventDefault(); release(); }
@@ -1365,20 +1552,31 @@ $('#impact').addEventListener('pointermove',e=>{ if(impDrag&&mode==='aim') setIm
 $('#impact').addEventListener('pointerup',()=>{ impDrag=false; }); $('#impact').addEventListener('pointercancel',()=>{ impDrag=false; });
 $('#impact').addEventListener('dblclick',()=>{ if(mode!=='aim') return; impactX=impactY=0; updImpact(); updatePrediction(); refreshHUD(); });
 $('#againBtn').addEventListener('click',resetHole);
+$('#nextBtn').addEventListener('click',()=>nextHole());
 function setDiff(k){ diffKey=k; document.querySelectorAll('#diffPick button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.d===k?'true':'false')); $('#diffNote').textContent=DIFF[k].note; $('#diffBtn').textContent='難易度：'+DIFF[k].label; if(mode==='aim'){ updatePrediction(); refreshHUD(); } refreshWindUI(); }
 document.querySelectorAll('#diffPick button').forEach(b=>b.addEventListener('click',()=>setDiff(b.dataset.d)));
 $('#diffBtn').addEventListener('click',()=>{ if(mode==='impact') return; const ks=Object.keys(DIFF); setDiff(ks[(ks.indexOf(diffKey)+1)%ks.length]); toast('難易度：'+D().label, D().note, '', 2200); });
 setDiff('easy');
-function start(){ ensureAudio(); $('#title').hidden=true; $('#hud').hidden=false; resetHole(); }
+function start(){ ensureAudio(); $('#title').hidden=true; $('#hud').hidden=false; roundCard.length=0; resetHole(); }
 $('#startBtn').addEventListener('click',start);
-$('#titleYards').textContent=fmtY(Math.hypot(PIN.x-TEE.x,PIN.z-TEE.z));
-$('#holeSub').textContent=`PAR ${PAR}`;
+// ホールの切り替え：コース・旗・文字表示を入れ替え、ボールをティーに置く
+function setHole(i){
+  useHole(i);
+  $('#holeNo').textContent=`HOLE ${i+1}`; $('#holeSub').textContent=`PAR ${PAR}`;
+  $('#titleHole').textContent=i+1; $('#titlePar').textContent=PAR; $('#titleYards').textContent=fmtY(Math.hypot(PIN.x-TEE.x,PIN.z-TEE.z));
+  $('#holeDesc').textContent=`${CUR.name}：${CUR.desc}`;
+  document.querySelectorAll('#holePick button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.h===i?'true':'false'));
+  placeBall(TEE.x-1.5,TEE.z); aimYaw=Math.atan2(CUR.teeAim.z-ball.z, CUR.teeAim.x-ball.x); updatePrediction(); golferPlace(); poseGolfer(poseAddress(0));
+}
+function nextHole(){ const nx=(HOLE+1)%HOLES.length; if(nx===0) roundCard.length=0; setHole(nx); resetHole(); }
+{ const hp=$('#holePick'); HOLES.forEach((h,i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.h=i; b.textContent=`${i+1}番 ${h.name}`; b.addEventListener('click',()=>setHole(i)); hp.appendChild(b); }); }
+setHole(0);
 
 function fitCamera(){ camera.aspect=innerWidth/innerHeight; camera.fov=camera.aspect<0.8?62:(camera.aspect<1.2?50:42); camera.updateProjectionMatrix(); }
 addEventListener('resize',()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight,false); makeRT(); });
 
 /* ---------------- loop ---------------- */
-placeBall(-1.5,0); newWind(); updatePrediction(); golferPlace(); poseGolfer(poseAddress(0));
+newWind();
 applyQuality();
 fitCamera();
 let last=performance.now();
