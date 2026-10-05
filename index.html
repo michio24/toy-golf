@@ -114,6 +114,17 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
 #toastMain.bad{color:#ff9b8c}
 #toastSub{margin-top:6px;font-weight:700;font-size:15px;text-shadow:0 2px 8px rgba(0,0,0,.6)}
 .overlay{position:fixed;inset:0;display:grid;place-items:end start;padding:24px 16px calc(24px + env(safe-area-inset-bottom,0px));background:linear-gradient(90deg,rgba(18,14,10,.72),rgba(18,14,10,.25) 55%,transparent);pointer-events:auto}
+#title{overflow-y:auto;align-items:safe end}
+/* 人形選択が増えた分、背の低い画面ではタイトルカードを詰めてティーオフまで収める */
+@media (max-height: 880px){
+  #title .titlecard{padding-bottom:0}
+  #title h1{font-size:clamp(40px,9vh,60px);margin:6px 0 10px}
+  #title p{line-height:1.6;margin-bottom:12px}
+  #title .facts{margin-bottom:12px}
+  #title .keys{gap:1px 12px;margin-bottom:14px}
+  #title .diff{margin-bottom:12px}
+  #title .diffnote{margin:-6px 0 12px}
+}
 .titlecard{max-width:480px;padding-left:clamp(0px,4vw,48px);padding-bottom:clamp(0px,4vh,40px)}
 .titlecard .eyebrow{font-weight:700;letter-spacing:.24em;font-size:12px;color:var(--accent)}
 .titlecard h1{font-family:var(--f-display);font-weight:400;white-space:nowrap;font-size:clamp(44px,12vw,84px);line-height:1;margin:10px 0 14px;text-shadow:0 4px 0 #1b2236,0 10px 30px rgba(0,0,0,.4)}
@@ -227,6 +238,9 @@ label,.lbl{display:block;font-size:11px;letter-spacing:.08em;color:var(--ink-dim
     <label style="margin-bottom:6px">ホール</label>
     <div class="diff" id="holePick"></div>
     <div class="diffnote" id="holeDesc"></div>
+    <label style="margin-bottom:6px">人形</label>
+    <div class="diff" id="dollPick"></div>
+    <div class="diffnote" id="dollNote"></div>
     <label style="margin-bottom:6px">難易度</label>
     <div class="diff" id="diffPick"><button type="button" data-d="easy" aria-pressed="true">かんたん</button><button type="button" data-d="normal" aria-pressed="false">ふつう</button><button type="button" data-d="pro" aria-pressed="false">プロ</button></div>
     <div class="diffnote" id="diffNote"></div>
@@ -298,6 +312,34 @@ const HOLES=[
     trees:{kind:'snow', n:62, seed:23}, props:()=>propsSnow(),
     th:{ rough1:'#e3e9f0', rough2:'#c3cedb', fw:'#7fb489', stripe:'#ffffff', tee:'#93c79c', fringe:'#6aa978', green:'#86c86a',
          sand:'#d9c39b', border:'#2a3f66', stitch:'#ffffff', stain:'#8fbde0', water:'#3d8fd1', waterOp:0.82, flag:'#3d8fd1', flagInk:'#ffffff', teeMark:'#e4493c' } },
+  { name:'うみの国', par:5,
+    desc:'砂浜のフェルトを左、右とS字に進むパー5。ティーショットで入り江の海を越えれば近道、グリーンの右手前には潮だまり。',
+    FW:[[15,-60,120,-55,17],[120,-55,200,45,15],[200,45,300,40,14]],
+    GREEN:{x:335,z:25,rx:15,rz:13}, PIN:{x:340,z:22},
+    TEE:{x:-5,z:-60,hx:6,hz:5,r:1.5}, teeAim:{x:125,z:-55},
+    BUNKERS:[[95,-35,6],[214,25,5.5],[262,58,5],[317,8,5],[352,40,5],[355,10,4]],
+    PONDS:[[[85,-5,10],[100,5,12],[115,13,11],[128,22,9]],[[318,-14,6.5],[330,-18,7]]],
+    greenH:(x,z)=>0.26+0.010*(x-GREEN.x)-0.007*(z-GREEN.z)+0.14*Math.exp(-((x-344)*(x-344)+(z-30)*(z-30))/35)-0.08*Math.exp(-((x-328)*(x-328)+(z-18)*(z-18))/25),
+    trees:{kind:'palm', n:56, seed:31}, props:()=>propsBeach(),
+    th:{ rough1:'#e2c98f', rough2:'#c9a866', fw:'#79c36a', stripe:'#fffbe8', tee:'#93d27a', fringe:'#62ad5a', green:'#8ad06a',
+         sand:'#fffaf0', border:'#1c5d86', stitch:'#fff6e0', stain:'#3a8fc2', water:'#1e8ad6', waterOp:0.85, flag:'#ff8a3c', flagInk:'#ffffff', teeMark:'#1e8ad6' } },
+  // 5番：フェアウェイは丸い「惑星」が飛び石のように浮かぶだけ。グリーンはブラックホールの輪に囲まれた浮島
+  { name:'うちゅうの国', par:4,
+    desc:'夜空のフェルトに惑星のフェアウェイが飛び石のように浮かぶパー4。手前のブラックホールを越えて大きな惑星へ。グリーンはブラックホールの輪に囲まれた浮島で、まん中が丸くふくらんでいる。',
+    // 円形のフェアウェイは始点と終点を少しずらしたカプセルで作る（同じ点だと長さ0で割り算が壊れる）
+    FW:[[94,-22,96,-22,13],[195,18,213,12,20],[262,-14,263,-14,9]],
+    GREEN:{x:326,z:-5,rx:14,rz:12}, PIN:{x:333,z:-10},
+    TEE:{x:0,z:15,hx:6,hz:5,r:1.5}, teeAim:{x:200,z:16},
+    BUNKERS:[[101,-11,4],[209,1,4],[222,34,5],[255,-24,3.5]],
+    // 小さなブラックホールと、グリーンを一周する輪
+    PONDS:[[[140,18,8],[146,22,6]],
+           Array.from({length:14},(_,i)=>{ const a=i/14*Math.PI*2; return [326+Math.cos(a)*28, -5+Math.sin(a)*28, 7]; })],
+    pondDepth:3.2, // 輪が地面のうねりで途切れないよう深めに掘る
+    // まん中がまるくふくらんだ「惑星グリーン」。ピンは右奥の肩
+    greenH:(x,z)=>0.3+0.004*(x-GREEN.x)+0.24*Math.exp(-((x-323)*(x-323)+(z+3)*(z+3))/45),
+    trees:{kind:'space', n:44, seed:59}, props:()=>propsSpace(),
+    th:{ rough1:'#28305e', rough2:'#1b2147', fw:'#9a8ce0', stripe:'#fff2b8', tee:'#b0a4ec', fringe:'#7cbf63', green:'#93d46c',
+         sand:'#e4e0f2', border:'#0e1330', stitch:'#f5d76e', stain:'#7a5cff', water:'#120a26', waterOp:0.97, flag:'#f5d76e', flagInk:'#1b2236', teeMark:'#f5d76e' } },
 ];
 let HOLE=0, CUR=HOLES[0], FW, GREEN, PIN, TEE, BUNKERS, PONDS, PAR, TH;
 const MAT={x:175,z:-5,hx:200,hz:85,r:25};
@@ -324,7 +366,7 @@ function terrainH(x,z){
   h=mix(h,0.5,sstep(4,-1,sdTee(x,z)));
   h=mix(h,greenH(x,z),sstep(7,0,sdGreen(x,z)));
   h-=0.75*sstep(1.0,-2.0,sdBunker(x,z));
-  h-=1.7*sstep(3,-5,sdWater(x,z));
+  h-=(CUR.pondDepth||1.7)*sstep(3,-5,sdWater(x,z)); // 池の掘り下げ量（ホールごとに変えられる）
   h*=sstep(0,-15,md);
   return Math.max(h, DESK_Y+0.25);
 }
@@ -370,6 +412,23 @@ const CLUBS=[
   {id:'SW',v:33,deg:30,rpm:10000,L:0.89,bxo:0.0},
   {id:'PT',putter:true,L:0.86,bxo:0.03,deg:3},
 ];
+// ショットを打つゼンマイ人形。spd=初速、disp=ショットの散らばり、spin=スピン量、
+// lie=ラフ・バンカーでの減速の受けやすさ、rhythm=巻きムラの影響、putt=パットの散らばり（すべて1が標準）
+const DOLLS=[
+  {id:'pip', name:'ピップ', type:'バランス', stats:'飛距離 ○　正確さ ○　スピン ○　ラフ ○　パット ○',
+   desc:'クセのない万能タイプ。巻きムラによるブレが半分ですむ。',
+   look:{shirt:'#e4493c', pants:'#1f2d4f', hat:'cap', hatCol:'#f5c22e', sole:'#e4493c', face:'pip', scale:1},
+   spd:1, disp:1, spin:1, lie:1, rhythm:0.5, putt:1},
+  {id:'gonta', name:'ゴンタ', type:'パワー', stats:'飛距離 ◎　正確さ △　スピン △　ラフ ◎　パット △',
+   desc:'大きな体でよく飛び、ラフやバンカーも力で抜ける。散らばりは大きく、スピンが少なめで転がる。',
+   look:{shirt:'#2f6fc0', pants:'#33333b', hat:'helmet', hatCol:'#f08a2c', sole:'#f08a2c', face:'gonta', scale:1.12},
+   spd:1.08, disp:1.35, spin:0.85, lie:0.5, rhythm:1, putt:1.3},
+  {id:'mimi', name:'ミミ', type:'テクニック', stats:'飛距離 △　正確さ ◎　スピン ◎　ラフ △　パット ◎',
+   desc:'小柄で飛距離は控えめだが、狙いが正確でスピンがよく効き、パットも上手。ラフは苦手。',
+   look:{shirt:'#4fbf8f', pants:'#5a4a7a', hat:'beanie', hatCol:'#ff7aa8', sole:'#ff7aa8', face:'mimi', scale:0.9},
+   spd:0.95, disp:0.7, spin:1.18, lie:1.3, rhythm:1, putt:0.6},
+];
+let dollIdx=0; const DL=()=>DOLLS[dollIdx];
 
 /* ---------------- flight model ---------------- */
 function aeroAccel(vx,vy,vz,w,tilt,wx,wz,out){
@@ -388,8 +447,10 @@ function launchParams(club, lieKey, power, err, ix, iy, slope){
   let sf=L.spd, sp=L.spin;
   if(lieKey==='bunker' && club.id==='SW'){ sf=0.86; sp=0.8; }
   if(lieKey==='tee' && club.id!=='1W' && club.id!=='3W'){ sf=1; }
+  // 人形の特性：ラフ・バンカーでの減速の受けやすさ
+  if(lieKey==='rough'||lieKey==='bunker') sf=1-(1-sf)*DL().lie;
   if(lieKey!=='tee' && club.id==='1W'){ sf*=0.93; deg-=1.5; }
-  spd*=sf; rpm*=sp; deg+=L.launch;
+  spd*=sf*DL().spd; rpm*=sp*DL().spin; deg+=L.launch;
   deg += -2.5*iy + Math.atan(slope)*57.3*0.8;
   rpm *= (1-0.4*iy);
   const tilt = -0.22*err - 0.12*ix;
@@ -402,7 +463,9 @@ function simulateCarry(lp,wx=0,wz=0,out=null){
   if(out) out.push([x,Math.max(0,y),z]);
   return {x, z};
 }
-CLUBS.forEach(c=>{ if(!c.putter){ const p=simulateCarry(launchParams(c,'tee',1,0,0,0,0)); c.carry=Math.hypot(p.x,p.z); } });
+// クラブごとの標準キャリー（人形を替えたら計算し直す）
+function calcCarry(){ CLUBS.forEach(c=>{ if(!c.putter){ const p=simulateCarry(launchParams(c,'tee',1,0,0,0,0)); c.carry=Math.hypot(p.x,p.z); } }); }
+calcCarry();
 
 /* ---------------- renderer & scene ---------------- */
 const canvas=$('#c');
@@ -661,6 +724,77 @@ function addSnowTree(x,z,rnd){
   OBS.push({t:'s',x,y:y+3.3*s,z,r:2.6*s,e:0.3,br:3.6*s+2});
   OBS.push({t:'c',x,z,r:0.45*s,y0:y,y1:y+1.6*s,e:0.5,br:3});
 }
+// うみの国の木：しなったヤシの木と、ストライプのビーチパラソル
+const palmLeafMats=['#3f9a4a','#4fae52','#2f8444'].map(c=>toyPaint(c,0.4));
+const coconutMat=toyPaint('#7a4a26',0.6), palmTrunkMat=toyPaint('#c69a62',0.6);
+let parasolMats=null;
+function getParasolMats(){
+  if(parasolMats) return parasolMats;
+  // 円すいの側面に放射状のストライプを貼る
+  parasolMats=['#e4493c','#2f6fc0','#f0b92f','#ff7aa8'].map(c=>{
+    const t=canvasTex(256,64,(g,w,h)=>{ for(let i=0;i<8;i++){ g.fillStyle=i%2?'#fffaf0':c; g.fillRect(i*w/8,0,w/8,h); } });
+    return new T.MeshPhysicalMaterial({map:t, roughness:0.5, clearcoat:0.4, clearcoatRoughness:0.4, side:T.DoubleSide});
+  });
+  return parasolMats;
+}
+function addParasol(x,z,rnd){
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z);
+  const s=0.9+rnd()*0.4, poleH=5.2*s, cr=4.2*s, ch=1.6*s;
+  const pole=new T.Mesh(geoStick, stickMat); pole.scale.set(0.2*s,poleH+ch*0.5,0.2*s); g.add(pole);
+  const top=new T.Mesh(geoCone, getParasolMats()[rnd()*4|0]); top.scale.set(cr,ch,cr); top.position.y=poleH; top.rotation.y=rnd()*Math.PI; g.add(top);
+  g.rotation.z=(rnd()-0.5)*0.2; g.rotation.x=(rnd()-0.5)*0.2;
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  OBS.push({t:'s',x,y:y+poleH+ch*0.3,z,r:cr*0.7,e:0.55,br:cr+2});
+  OBS.push({t:'c',x,z,r:0.2*s+0.05,y0:y,y1:y+poleH,e:0.5,br:3});
+}
+function addPalmTree(x,z,rnd){
+  if(rnd()<0.22){ addParasol(x,z,rnd); return; }
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z); g.rotation.y=rnd()*Math.PI*2;
+  const s=0.85+rnd()*0.5, seg=6, segH=1.45*s, lean=0.06+rnd()*0.06;
+  // 幹は少しずつ傾けた輪切りを積んで、ゆるく弓なりにする
+  let px=0, py=0;
+  for(let i=0;i<seg;i++){ const r=(0.62-i*0.05)*s; const c=new T.Mesh(geoTrunk, palmTrunkMat); c.scale.set(r,segH*1.05,r); c.position.set(px,py,0); c.rotation.z=-lean*(i+1)*0.5; g.add(c);
+    px+=Math.sin(lean*(i+1)*0.5)*segH; py+=Math.cos(lean*(i+1)*0.5)*segH; }
+  // 葉：平たくのばした球を放射状に垂らす
+  const nL=7, lm=palmLeafMats[rnd()*palmLeafMats.length|0];
+  for(let i=0;i<nL;i++){ const a=i/nL*Math.PI*2+rnd()*0.3; const leaf=new T.Group(); leaf.position.set(px,py,0); leaf.rotation.y=a;
+    const m=new T.Mesh(geoBall, lm); m.scale.set(2.9*s,0.16*s,0.75*s); m.position.x=2.5*s; m.rotation.z=-0.35-rnd()*0.2; leaf.add(m); g.add(leaf); }
+  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2; const c=new T.Mesh(geoBall, coconutMat); c.scale.setScalar(0.42*s); c.position.set(px+Math.cos(a)*0.55*s,py-0.45*s,Math.sin(a)*0.55*s); g.add(c); }
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  // 当たり判定：葉の茂みは傾いた先の位置に球、幹は根元の円柱で近似
+  const wx=x+Math.cos(g.rotation.y)*px, wz=z-Math.sin(g.rotation.y)*px;
+  OBS.push({t:'s',x:wx,y:y+py,z:wz,r:3.2*s,e:0.4,br:3.2*s+2});
+  OBS.push({t:'c',x,z,r:0.55*s+0.05,y0:y,y1:y+py*0.6,e:0.5,br:3});
+}
+// うちゅうの国の木：おもちゃのロケットと、台にのった惑星の模型
+const rocketMats=['#e4493c','#2f6fc0','#f0b92f'].map(c=>toyPaint(c,0.3));
+const rocketBodyMat=toyPaint('#f4f1ea',0.3), windowMat=toyPaint('#6fc7ff',0.15);
+const planetMats=['#ff8a5c','#5ec8ff','#b07cff','#6fdc9c','#ffc23c'].map(c=>toyPaint(c,0.35));
+const planetRingMat=toyPaint('#f5d76e',0.3);
+function addRocket(x,z,s,rnd){
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z); g.rotation.y=rnd()*Math.PI*2;
+  const cm=rocketMats[rnd()*rocketMats.length|0], bh=5*s, r=0.9*s;
+  const body=new T.Mesh(geoBase, rocketBodyMat); body.scale.set(r,bh,r); body.position.y=0.6*s; g.add(body);
+  const band=new T.Mesh(geoBase, cm); band.scale.set(r*1.02,0.5*s,r*1.02); band.position.y=0.6*s+bh*0.3; g.add(band);
+  const nose=new T.Mesh(geoCone, cm); nose.scale.set(r,2.1*s,r); nose.position.y=0.6*s+bh; g.add(nose);
+  const win=new T.Mesh(geoBall, windowMat); win.scale.set(0.42*s,0.42*s,0.2*s); win.position.set(0,0.6*s+bh*0.68,r*0.92); g.add(win);
+  // 3枚の尾翼
+  for(let i=0;i<3;i++){ const a=i/3*Math.PI*2; const fin=new T.Mesh(blockGeo, cm); fin.scale.set(0.16*s,2.2*s,1.3*s); fin.position.set(Math.sin(a)*r*1.25,1.1*s,Math.cos(a)*r*1.25); fin.rotation.y=a; g.add(fin); }
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  OBS.push({t:'c',x,z,r:r+0.05,y0:y,y1:y+0.6*s+bh+1.6*s,e:0.45,br:3+r});
+}
+function addPlanetModel(x,z,s,rnd){
+  const y=terrainH(x,z); const g=new T.Group(); g.position.set(x,y,z);
+  const sh=3.6*s, pr=2.1*s;
+  const st=new T.Mesh(geoStick, stickMat); st.scale.set(0.2*s,sh,0.2*s); g.add(st);
+  const ft=new T.Mesh(geoBase, stickMat); ft.scale.set(1.1*s,0.3*s,1.1*s); g.add(ft);
+  const pl=new T.Mesh(geoBall, planetMats[rnd()*planetMats.length|0]); pl.scale.setScalar(pr); pl.position.y=sh+pr*0.8; g.add(pl);
+  if(rnd()<0.6){ const ring=new T.Mesh(new T.TorusGeometry(pr*1.55,0.16*s,8,40), planetRingMat); ring.scale.z=0.35; ring.rotation.x=Math.PI/2+0.35; ring.rotation.y=rnd()*0.6; ring.position.y=sh+pr*0.8; g.add(ring); }
+  g.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; } }); addC(g);
+  OBS.push({t:'s',x,y:y+sh+pr*0.8,z,r:pr,e:0.6,br:pr*1.6+2});
+  OBS.push({t:'c',x,z,r:0.2*s+0.05,y0:y,y1:y+sh,e:0.5,br:3});
+}
+function addSpaceTree(x,z,rnd){ if(rnd()<0.55) addRocket(x,z,0.8+rnd()*0.5,rnd); else addPlanetModel(x,z,0.8+rnd()*0.5,rnd); }
 function plantTrees(){
   const cfg=CUR.trees; const rnd=rng(cfg.seed); let n=0, tries=0;
   while(n<cfg.n && tries<6000){ tries++;
@@ -672,7 +806,7 @@ function plantTrees(){
     if(cfg.clearLine && sdCap(x,z,TEE.x,TEE.z,PIN.x,PIN.z,13)<0) continue;
     if(dF>26 && rnd()<0.75) continue;
     let ok=true; for(const o of OBS){ const d=Math.hypot(o.x-x,o.z-z); if(o.t==='c' ? d<7 : (cfg.kind!=='toy' && d<6.5)){ ok=false; break; } } if(!ok) continue;
-    if(cfg.kind==='candy') addCandyTree(x,z,rnd); else if(cfg.kind==='snow') addSnowTree(x,z,rnd); else addTree(x,z,rnd);
+    if(cfg.kind==='candy') addCandyTree(x,z,rnd); else if(cfg.kind==='snow') addSnowTree(x,z,rnd); else if(cfg.kind==='palm') addPalmTree(x,z,rnd); else if(cfg.kind==='space') addSpaceTree(x,z,rnd); else addTree(x,z,rnd);
     n++;
   }
 }
@@ -723,6 +857,62 @@ function propsSnow(){ const rnd=rng(5);
   addBlock(46,-28,terrainH(46,-28)-0.2,3.6,0.4,'B','#e4493c');
   addBlock(50,-25.5,terrainH(50,-25.5)-0.2,3.6,-0.2,'R','#2f6fc0');
   addSnowman(362,58,2.2,rnd);
+}
+// ビーチボール：縦じまの球
+function addBeachBall(x,z,r){
+  const tex=canvasTex(512,256,(g,w,h)=>{ const cs=['#e4493c','#fffaf0','#2f6fc0','#fffaf0','#f0b92f','#fffaf0']; cs.forEach((c,i)=>{ g.fillStyle=c; g.fillRect(i*w/6,0,w/6+1,h); }); g.fillStyle='#fffaf0'; g.fillRect(0,0,w,14); g.fillRect(0,h-14,w,14); });
+  const y=terrainH(x,z)+r*0.92;
+  const m=new T.Mesh(geoBall, new T.MeshPhysicalMaterial({map:tex, roughness:0.3, clearcoat:0.9, clearcoatRoughness:0.15})); m.scale.setScalar(r); m.position.set(x,y,z); m.rotation.set(0.4,0.8,0.2); m.castShadow=true; m.receiveShadow=true; addC(m);
+  OBS.push({t:'s',x,y,z,r,e:0.7,br:r+2});
+}
+// 砂のお城：土台の箱に、円すい屋根の塔を4本
+function addSandCastle(x,z,s){
+  const y=terrainH(x,z)-0.2, sm=toyPaint('#e8cf97',0.85), rm=toyPaint('#e4493c',0.4);
+  const base=new T.Mesh(blockGeo, sm); base.scale.set(6*s,3*s,6*s); base.position.set(x,y+1.5*s,z); base.castShadow=true; base.receiveShadow=true; addC(base);
+  OBS.push({t:'b',x,y:y+1.5*s,z,hx:3*s,hy:1.5*s,hz:3*s,rot:0,e:0.2,br:6*s});
+  [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([dx,dz])=>{ const tx=x+dx*3*s, tz=z+dz*3*s;
+    const tw=new T.Mesh(geoBase, sm); tw.scale.set(1.3*s,4.6*s,1.3*s); tw.position.set(tx,y,tz); tw.castShadow=true; addC(tw);
+    const rf=new T.Mesh(geoCone, rm); rf.scale.set(1.6*s,2*s,1.6*s); rf.position.set(tx,y+4.6*s,tz); rf.castShadow=true; addC(rf);
+    OBS.push({t:'c',x:tx,z:tz,r:1.3*s,y0:y,y1:y+6.6*s,e:0.2,br:3}); });
+}
+// 4番ホールの小物：入り江の向こうの SEA の積み木、砂のお城、グリーン奥のビーチボール
+function propsBeach(){ const rnd=rng(17);
+  'SEA'.split('').forEach((ch,i)=>{ const x=66+i*4.8, z=30+Math.sin(i*1.5)*1.2; addBlock(x,z,terrainH(x,z)-0.2,4.2,(rnd()-0.5)*0.5,ch,['#2f6fc0','#f0b92f','#e4493c'][i]); });
+  addSandCastle(268,8,1);
+  addBeachBall(366,30,3.2);
+  'SUN'.split('').forEach((ch,i)=>{ const x=26+i*4.2, z=-31+i*0.8; addBlock(x,z,terrainH(x,z)-0.2,3.6,(rnd()-0.5)*0.6,ch,['#ff8a3c','#1e8ad6','#f0b92f'][i]); });
+}
+// くるくる回して見せる飾り（見た目だけ。当たり判定は回転に関係ない形にしておく）
+const SPINNERS=[];
+// UFO：円盤とドームと光る窓。ブラックホールの上に浮かせ、ボールが当たると跳ね返る
+function addUFO(x,z,hover){
+  const y=terrainH(x,z)+hover; const g=new T.Group(); g.position.set(x,y,z);
+  const hull=new T.Mesh(geoBall, new T.MeshPhysicalMaterial({color:lin('#c9ced8'), roughness:0.25, metalness:0.6, clearcoat:1, clearcoatRoughness:0.1})); hull.scale.set(4.6,1.1,4.6); g.add(hull);
+  const dome=new T.Mesh(geoBall, new T.MeshPhysicalMaterial({color:lin('#8fe6ff'), roughness:0.05, transparent:true, opacity:0.75, clearcoat:1})); dome.scale.set(2,1.7,2); dome.position.y=0.7; g.add(dome);
+  const lightMats=['#f5d76e','#ff6f91','#6fdc9c'].map(c=>new T.MeshBasicMaterial({color:lin(c)}));
+  for(let i=0;i<10;i++){ const a=i/10*Math.PI*2; const l=new T.Mesh(geoBall, lightMats[i%3]); l.scale.setScalar(0.32); l.position.set(Math.cos(a)*3.9,-0.05,Math.sin(a)*3.9); g.add(l); }
+  // 下向きの光線（半透明の円すい）
+  const beam=new T.Mesh(geoCone, new T.MeshBasicMaterial({color:lin('#b8f2ff'), transparent:true, opacity:0.14, depthWrite:false})); beam.scale.set(3.4,hover,3.4); beam.rotation.x=Math.PI; g.add(beam);
+  hull.castShadow=true; dome.castShadow=true; addC(g);
+  SPINNERS.push({o:g, spd:0.9});
+  OBS.push({t:'b',x,y,z,hx:3.6,hy:1.1,hz:3.6,rot:0,e:0.7,br:7});
+  OBS.push({t:'s',x,y:y+0.7,z,r:2,e:0.7,br:7});
+}
+// 月：クレーター模様の灰色の球を地面に半分うめる
+function addMoon(x,z,r){
+  const tex=canvasTex(512,256,(g,w,h)=>{ g.fillStyle='#bfc0c8'; g.fillRect(0,0,w,h); const rnd=rng(3);
+    for(let i=0;i<60;i++){ const cx=rnd()*w, cy=rnd()*h, cr=4+rnd()*22; g.fillStyle='rgba(90,92,110,.35)'; g.beginPath(); g.arc(cx,cy,cr,0,7); g.fill(); g.fillStyle='rgba(255,255,255,.25)'; g.beginPath(); g.arc(cx-cr*0.2,cy-cr*0.2,cr*0.7,0,7); g.fill(); } });
+  const y=terrainH(x,z)+r*0.55;
+  const m=new T.Mesh(geoBall, new T.MeshPhysicalMaterial({map:tex, roughness:0.8, clearcoat:0.2})); m.scale.setScalar(r); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; addC(m);
+  OBS.push({t:'s',x,y,z,r,e:0.35,br:r+2});
+}
+// 5番ホールの小物：ブラックホールの上の UFO、ティー脇の大きなロケット、土星の模型、月、SPACE の積み木
+function propsSpace(){ const rnd=rng(29);
+  addUFO(143,20,13);
+  addRocket(26,-12,2.1,rnd);
+  addPlanetModel(64,46,2.2,rnd);
+  addMoon(170,-52,5.5);
+  'SPACE'.split('').forEach((ch,i)=>{ const x=236+i*5, z=56+Math.sin(i*1.4)*1.3; addBlock(x,z,terrainH(x,z)-0.2,4.2,(rnd()-0.5)*0.5,ch,['#2f6fc0','#e4493c','#f0b92f','#3d9a5b','#b07cff'][i]); });
 }
 function addTeeMarkers(){
   const teeMarkMat=toyPaint(TH.teeMark,0.3);
@@ -829,11 +1019,45 @@ scene.add(GF.root);
   const bt=new T.Mesh(new T.TorusGeometry(0.15,0.018,8,28),belt); bt.rotation.x=Math.PI/2; bt.scale.y=0.8; bt.position.y=0.07; P.pelvis.add(bt);
   P.pelvis.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
   P.head=new T.Group(); R.add(P.head);
-  const face=canvasTex(256,128,(g,w,h)=>{ g.fillStyle='#e8c29a'; g.fillRect(0,0,w,h); g.fillStyle='#1b1a1a'; g.beginPath(); g.ellipse(56,62,4,6,0,0,7); g.ellipse(72,62,4,6,0,0,7); g.fill(); g.fillStyle='rgba(230,110,100,.45)'; g.beginPath(); g.arc(49,73,5,0,7); g.arc(79,73,5,0,7); g.fill(); g.strokeStyle='#5a2a1a'; g.lineWidth=2.5; g.beginPath(); g.arc(64,72,6,0.2,Math.PI-0.2); g.stroke(); });
-  const hd=new T.Mesh(new T.SphereGeometry(0.135,32,20),new T.MeshPhysicalMaterial({map:face,roughness:0.42,clearcoat:0.7,clearcoatRoughness:0.25})); P.head.add(hd);
-  const cap=new T.Mesh(new T.SphereGeometry(0.142,32,12,0,Math.PI*2,0,Math.PI*0.43),capM); cap.position.y=0.008; P.head.add(cap);
-  const brim=new T.Mesh(new T.CylinderGeometry(0.1,0.1,0.014,28),capM); brim.scale.z=0.75; brim.position.set(0,0.055,0.115); brim.rotation.x=0.18; P.head.add(brim);
-  const btn=new T.Mesh(sph,capM); btn.scale.setScalar(0.018); btn.position.y=0.15; P.head.add(btn);
+  // 顔：人形ごとに描き分ける（テクスチャの u=0.25 付近が正面）
+  const faceTex=kind=>canvasTex(256,128,(g,w,h)=>{
+    g.fillStyle=kind==='gonta'?'#dba77a':(kind==='mimi'?'#f0cba4':'#e8c29a'); g.fillRect(0,0,w,h);
+    g.fillStyle='#1b1a1a'; g.beginPath(); g.ellipse(56,62,4,6,0,0,7); g.ellipse(72,62,4,6,0,0,7); g.fill();
+    if(kind==='gonta'){
+      // 太い眉とひげ
+      g.strokeStyle='#2a1a10'; g.lineWidth=4; g.lineCap='round'; g.beginPath(); g.moveTo(50,51); g.lineTo(60,54); g.moveTo(78,51); g.lineTo(68,54); g.stroke();
+      g.fillStyle='#3a2414'; g.beginPath(); g.ellipse(59,74,7,3.5,0.25,0,7); g.ellipse(69,74,7,3.5,-0.25,0,7); g.fill();
+      g.strokeStyle='#5a2a1a'; g.lineWidth=2.5; g.beginPath(); g.moveTo(59,81); g.lineTo(69,81); g.stroke();
+    } else if(kind==='mimi'){
+      // 目のハイライト、まつ毛、そばかす
+      g.fillStyle='#fff'; g.beginPath(); g.arc(57.5,59.5,1.6,0,7); g.arc(73.5,59.5,1.6,0,7); g.fill();
+      g.strokeStyle='#1b1a1a'; g.lineWidth=1.6; g.beginPath(); g.moveTo(52,58); g.lineTo(49,55); g.moveTo(76,58); g.lineTo(79,55); g.stroke();
+      g.fillStyle='rgba(240,100,120,.5)'; g.beginPath(); g.arc(48,73,6,0,7); g.arc(80,73,6,0,7); g.fill();
+      g.fillStyle='rgba(150,90,50,.55)'; [[45,70],[49,68],[51,72],[77,70],[81,68],[83,72]].forEach(([x,y])=>{ g.beginPath(); g.arc(x,y,1,0,7); g.fill(); });
+      g.strokeStyle='#5a2a1a'; g.lineWidth=2.5; g.beginPath(); g.arc(64,73,5,0.25,Math.PI-0.25); g.stroke();
+    } else {
+      g.fillStyle='rgba(230,110,100,.45)'; g.beginPath(); g.arc(49,73,5,0,7); g.arc(79,73,5,0,7); g.fill();
+      g.strokeStyle='#5a2a1a'; g.lineWidth=2.5; g.beginPath(); g.arc(64,72,6,0.2,Math.PI-0.2); g.stroke();
+    } });
+  GF.faces={pip:faceTex('pip'), gonta:faceTex('gonta'), mimi:faceTex('mimi')};
+  GF.faceMat=new T.MeshPhysicalMaterial({map:GF.faces.pip,roughness:0.42,clearcoat:0.7,clearcoatRoughness:0.25});
+  const hd=new T.Mesh(new T.SphereGeometry(0.135,32,20),GF.faceMat); P.head.add(hd);
+  // かぶりもの：キャップ／ヘルメット／ニット帽を作っておき、人形に合わせて表示を切り替える
+  GF.hats={cap:new T.Group(), helmet:new T.Group(), beanie:new T.Group()};
+  for(const k in GF.hats) P.head.add(GF.hats[k]);
+  { const H=GF.hats.cap;
+    const cap=new T.Mesh(new T.SphereGeometry(0.142,32,12,0,Math.PI*2,0,Math.PI*0.43),capM); cap.position.y=0.008; H.add(cap);
+    const brim=new T.Mesh(new T.CylinderGeometry(0.1,0.1,0.014,28),capM); brim.scale.z=0.75; brim.position.set(0,0.055,0.115); brim.rotation.x=0.18; H.add(brim);
+    const btn=new T.Mesh(sph,capM); btn.scale.setScalar(0.018); btn.position.y=0.15; H.add(btn); }
+  { const H=GF.hats.helmet;
+    const dome=new T.Mesh(new T.SphereGeometry(0.153,32,12,0,Math.PI*2,0,Math.PI*0.47),capM); dome.position.y=-0.004; H.add(dome);
+    const visor=new T.Mesh(new T.CylinderGeometry(0.11,0.11,0.012,28),capM); visor.scale.z=0.5; visor.position.set(0,0.03,0.125); visor.rotation.x=0.1; H.add(visor);
+    const ridge=new T.Mesh(sph,white); ridge.scale.set(0.024,0.02,0.14); ridge.position.y=0.142; H.add(ridge); }
+  { const H=GF.hats.beanie;
+    const dome=new T.Mesh(new T.SphereGeometry(0.146,32,12,0,Math.PI*2,0,Math.PI*0.45),capM); dome.scale.y=1.15; dome.position.y=0.01; H.add(dome);
+    const band=new T.Mesh(new T.TorusGeometry(0.136,0.024,10,32),capM); band.rotation.x=Math.PI/2; band.position.y=0.03; H.add(band);
+    const pom=new T.Mesh(sph,white); pom.scale.setScalar(0.048); pom.position.y=0.185; H.add(pom); }
+  GF.M={shirt, pants, capM, sole};
   P.head.traverse(o=>{ if(o.isMesh){ o.castShadow=true; } });
   P.uaL=mk(seg,shirt); P.uaR=mk(seg,shirt); P.faL=mk(seg,wood); P.faR=mk(seg,wood);
   P.thL=mk(seg,pants); P.thR=mk(seg,pants); P.shL=mk(seg,pants); P.shR=mk(seg,pants);
@@ -886,7 +1110,8 @@ function addressSolve(c, endY){
 function golferPlace(){
   const c=club(); const dx=dirX(), dz=dirZ(); const fx=-dz, fz=dx;
   let A=addressSolve(c,0.02);
-  const place=A=>{ const x=ball.x-fx*A.Bz-dx*c.bxo, z=ball.z-fz*A.Bz-dz*c.bxo; GF.root.position.set(x,terrainH(x,z),z); GF.root.rotation.set(0,-aimYaw,0); GF.root.updateMatrixWorld(true); };
+  const S=GF.root.scale.x; // 人形の大きさ。ボールとの間合いも同じ倍率で広げる
+  const place=A=>{ const x=ball.x-(fx*A.Bz+dx*c.bxo)*S, z=ball.z-(fz*A.Bz+dz*c.bxo)*S; GF.root.position.set(x,terrainH(x,z),z); GF.root.rotation.set(0,-aimYaw,0); GF.root.updateMatrixWorld(true); };
   place(A);
   const bl=GF.root.worldToLocal(new V3(ball.x,ball.y-BR,ball.z));
   if(Math.abs(bl.y)>0.01){ A=addressSolve(c,bl.y+0.02); place(A); }
@@ -1073,8 +1298,10 @@ function rhythmLabel(){ if(rhythmSamples.length<6 && !usedKeys) return null; con
 function carryNow(){ return club().putter ? power()*putterMax : Math.hypot(predicted.x-ball.x,predicted.z-ball.z); }
 function dispersion(){
   const c=club(), p=power(); const lieF={rough:1.4,bunker:1.8}[lieKey]||1; const over=p>1?1+6*(p-1):1;
-  const k=D().disp*rhythmFactor()*lieF*over;
-  if(c.putter){ const d=Math.max(0.3,carryNow()); return {lat:d*0.014*k, dist:d*0.035*k}; }
+  // 人形の特性：巻きムラの影響（rhythm）と、ショット／パットの散らばり
+  const kb=D().disp*(1+(rhythmFactor()-1)*DL().rhythm)*lieF*over;
+  if(c.putter){ const d=Math.max(0.3,carryNow()), kp=kb*DL().putt; return {lat:d*0.014*kp, dist:d*0.035*kp}; }
+  const k=kb*DL().disp;
   const base={'1W':0.045,'3W':0.042,'5I':0.038,'7I':0.034}[c.id]||0.03; const cr=Math.max(3,carryNow());
   return {lat:Math.max(0.6,cr*base*k), dist:Math.max(0.6,cr*0.028*k)};
 }
@@ -1102,6 +1329,7 @@ function autoClub(){
 function toAim(snap){
   trailClear();
   mode='aim'; phys=null; GF.top=null; GF.follow=-1; wound=0; lastNotch=0; rhythmSamples=[]; usedKeys=false;
+  impactX=impactY=0; updImpact(); // 打点は毎ショット中央にリセット
   lieKey=surfAt(ball.x,ball.z); if(lieKey==='ob'||lieKey==='water') lieKey='rough';
   if(lieKey==='tee' && strokes===0) aimYaw=Math.atan2(CUR.teeAim.z-ball.z, CUR.teeAim.x-ball.x);
   else aimYaw=Math.atan2(PIN.z-ball.z, PIN.x-ball.x);
@@ -1395,6 +1623,7 @@ function updateHUDFrame(){
 const camPos=new T.Vector3(150,120,200), camLook=new T.Vector3(175,0,-5); let snapCam=true;
 const dPos=new T.Vector3(), dLook=new T.Vector3();
 let dof={focus:10, ap:2, tilt:0};
+const DOF_STRENGTH=0.55; // 被写界深度ブラーの全体強度（1.0で従来の強さ）
 let flightCamBase=null;
 function updateCamera(dt){
   let k=3.2; let ap=2.2, tilt=4;
@@ -1442,6 +1671,7 @@ function updateCamera(dt){
 /* ---------------- visuals per frame ---------------- */
 const m4=new T.Matrix4(), q4=new T.Quaternion(), s3=new T.Vector3(), p3=new T.Vector3(), up3=new T.Vector3(0,1,0), n3=new T.Vector3();
 function updateVisuals(dt){
+  for(const s of SPINNERS) s.o.rotation.y+=s.spd*dt;
   if(mode==='holed'){ dropT=Math.min(1,dropT+dt*3); ball.y=mix(pinY+BR,pinY-0.19,dropT); }
   ballMesh.position.set(ball.x,ball.y,ball.z);
   if(mode==='flight'){ ballMesh.rotation.z-=ball.w*dt*0.05; } else if(mode==='roll'){ ballMesh.rotation.z-=Math.hypot(ball.vx,ball.vz)/BR*dt; }
@@ -1571,6 +1801,19 @@ function setHole(i){
 function nextHole(){ const nx=(HOLE+1)%HOLES.length; if(nx===0) roundCard.length=0; setHole(nx); resetHole(); }
 { const hp=$('#holePick'); HOLES.forEach((h,i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.h=i; b.textContent=`${i+1}番 ${h.name}`; b.addEventListener('click',()=>setHole(i)); hp.appendChild(b); }); }
 setHole(0);
+// 人形の切り替え：服・帽子・顔・大きさを入れ替え、飛距離表と予測を計算し直す
+function setDoll(i){
+  dollIdx=i; const d=DL(), lk=d.look;
+  GF.M.shirt.color.copy(lin(lk.shirt)); GF.M.pants.color.copy(lin(lk.pants)); GF.M.capM.color.copy(lin(lk.hatCol)); GF.M.sole.color.copy(lin(lk.sole));
+  for(const k in GF.hats) GF.hats[k].visible=(k===lk.hat);
+  GF.faceMat.map=GF.faces[lk.face]; GF.faceMat.needsUpdate=true;
+  GF.root.scale.setScalar(lk.scale);
+  calcCarry(); golferPlace(); updatePrediction(); setClubButtons(); refreshWindUI();
+  document.querySelectorAll('#dollPick button').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.i===i?'true':'false'));
+  $('#dollNote').innerHTML=`${d.desc}<br>${d.stats}`;
+}
+{ const dp=$('#dollPick'); DOLLS.forEach((d,i)=>{ const b=document.createElement('button'); b.type='button'; b.dataset.i=i; b.textContent=`${d.name}（${d.type}）`; b.addEventListener('click',()=>setDoll(i)); dp.appendChild(b); }); }
+setDoll(0);
 
 function fitCamera(){ camera.aspect=innerWidth/innerHeight; camera.fov=camera.aspect<0.8?62:(camera.aspect<1.2?50:42); camera.updateProjectionMatrix(); }
 addEventListener('resize',()=>{ fitCamera(); renderer.setSize(innerWidth,innerHeight,false); makeRT(); });
@@ -1587,7 +1830,7 @@ function frame(now){
   if(phys) stepPhysics(dt);
   updateGolfer(dt); updateVisuals(dt); updateCamera(dt); updateHUDFrame();
   renderer.setRenderTarget(rt); renderer.render(scene,camera); renderer.setRenderTarget(null);
-  const u=postMat.uniforms; u.tColor.value=rt.texture; u.tDepth.value=rt.depthTexture; u.uFocus.value=dof.focus; u.uAperture.value=dof.ap; u.uTilt.value=dof.tilt; u.uMaxCoc.value=quality==='high'?12:0; u.uTime.value=time; u.uNear.value=camera.near; u.uFar.value=camera.far;
+  const u=postMat.uniforms; u.tColor.value=rt.texture; u.tDepth.value=rt.depthTexture; u.uFocus.value=dof.focus; u.uAperture.value=dof.ap*DOF_STRENGTH; u.uTilt.value=dof.tilt*DOF_STRENGTH; u.uMaxCoc.value=quality==='high'?12*DOF_STRENGTH:0; u.uTime.value=time; u.uNear.value=camera.near; u.uFar.value=camera.far;
   renderer.render(postScene,postCam);
   requestAnimationFrame(frame);
 }
